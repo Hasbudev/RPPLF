@@ -227,6 +227,7 @@ const SHOWDOWN_OVERRIDES_RAW = {
   "Méga-Braségali": "Blaziken-Mega",
   "Méga-Ectoplasma": "Gengar-Mega",
   "Méga-Drattak": "Salamence-Mega",
+  "Méga-Tortank": "Blastoise-Mega",
 
   // Formes
   "Sachanobi": "Greninja-Ash",
@@ -261,6 +262,7 @@ const SHOWDOWN_OVERRIDES = Object.fromEntries(
 // ----------------------------
 const EN_TO_FR_OVERRIDES = {
   "kangaskhan-mega": "Méga-Kangourex",
+  "blastoise-mega": "Méga-Tortank",
   "lucario-mega": "Méga-Lucario",
   "sableye-mega": "Méga-Ténéfix",
   "metagross-mega": "Méga-Métalosse",
@@ -362,6 +364,7 @@ async function initDex() {
     "Méga-Braségali",
     "Méga-Drattak",
     "Shaymin-Céleste",
+    "Méga-Tortank",
   ];
 
   const existing = new Set(dexFR.map(n => normalize(n)));
