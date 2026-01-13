@@ -1,10 +1,11 @@
 // ======================================================
-// Team Builder RPPLF — app.js (clean)
-// - Dex FR gen1-7 (807) + ajout des formes utiles (mega, avatar, etc.)
+// Team Builder RPPLF — app.js (FULL)
+// - Dex FR gen1-7 + extras formes
 // - Recherche FR + EN
 // - Tri A→Z / Points ↓ / Points ↑
 // - BANNI (rouge, non cliquable)
 // - Export PokéPaste (EN Showdown)
+// - Import: colle TEXTE Showdown, ou un lien PokéPaste (demande le texte car CORS sur GitHub Pages)
 // ======================================================
 
 // ----------------------------
@@ -14,8 +15,8 @@ const normalize = (s) =>
   String(s || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // enlève accents
-    .replace(/[^a-z0-9]/g, ""); // enlève espaces/tirets/% etc
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
 
 // ----------------------------
 // BARÈME (points)
@@ -150,7 +151,7 @@ const BAREME = [
 ];
 
 // ----------------------------
-// BANNIS (affichés "BANNI", non ajoutables)
+// BANNIS (rouge, non ajoutables)
 // ⚠️ Deoxys-Vitesse N'EST PAS banni (il est à 10 pts)
 // ----------------------------
 const BANNED_NAMES = [
@@ -175,7 +176,7 @@ const BANNED_NAMES = [
   "Xerneas",
   "Yveltal",
   "Zygarde-Complète",
-  "Mouscoto", // Pheromosa
+  "Mouscoto", // Pheromosa (ton barème FR)
   "Solgaleo",
   "Lunala",
   "Necrozma-Crinière du Couchant",
@@ -190,7 +191,6 @@ const BANNED = new Set(BANNED_NAMES.map(normalize));
 
 // ----------------------------
 // Overrides Showdown (FR -> EN) pour formes/megAs
-// (clés normalisées automatiquement)
 // ----------------------------
 const SHOWDOWN_OVERRIDES_RAW = {
   // Megas
@@ -254,11 +254,65 @@ const SHOWDOWN_OVERRIDES = Object.fromEntries(
 );
 
 // ----------------------------
+// IMPORT: EN -> FR overrides (formes Showdown)
+// ----------------------------
+const EN_TO_FR_OVERRIDES = {
+  "kangaskhan-mega": "Méga-Kangourex",
+  "lucario-mega": "Méga-Lucario",
+  "sableye-mega": "Méga-Ténéfix",
+  "metagross-mega": "Méga-Métalosse",
+  "mawile-mega": "Méga-Mysdibule",
+  "diancie-mega": "Méga-Diancie",
+  "alakazam-mega": "Méga-Alakazam",
+  "gyarados-mega": "Méga-Léviator",
+  "swampert-mega": "Méga-Laggron",
+  "charizard-mega-x": "Méga Dracaufeu X",
+  "charizard-mega-y": "Méga-Dracaufeu Y",
+  "lopunny-mega": "Méga-Lockpin",
+  "pinsir-mega": "Méga-Scarabrute",
+  "scizor-mega": "Méga-Cizayox",
+  "medicham-mega": "Méga-Charmina",
+  "latios-mega": "Méga-Latios",
+  "tyranitar-mega": "Méga-Tyranocif",
+  "venusaur-mega": "Méga-Florizarre",
+  "latias-mega": "Méga-Latias",
+  "gallade-mega": "Méga-Gallame",
+  "manectric-mega": "Méga-Élecsprint",
+  "slowbro-mega": "Méga Flagadoss",
+  "heracross-mega": "Méga-Scarinho",
+  "garchomp-mega": "Méga-Carchacrok",
+  "gardevoir-mega": "Méga-Gardevoir",
+  "aerodactyl-mega": "Méga-Ptéra",
+  "altaria-mega": "Méga-Altaria",
+  "greninja-ash": "Sachanobi",
+  "deoxys-speed": "Deoxys-Vitesse",
+  "deoxys-attack": "Deoxys-Attaque",
+  "deoxys-defense": "Deoxys-Défense",
+  "landorus": "Démétéros Avatar",
+  "landorus-therian": "Démétéros-T",
+  "hoopa-unbound": "Hoopa Déchaîné",
+  "rotom-wash": "Motisma-Laveuse",
+  "marowak-alola": "Ossatueur-Alola",
+  "ninetales-alola": "Feunard-Alola",
+  "zygarde-50%": "Zygarde 50%",
+  "kyurem-black": "Kyurem Noir",
+  "kyurem-white": "Kyurem Blanc",
+  "tornadus-therian": "Boréas T",
+  "nihilego": "Zeroid",
+  "necrozma-dusk-mane": "Necrozma Dusk Mane",
+  "giratina-origin": "Giratina Origin",
+  "shaymin-sky": "Shaymin Sky",
+  "blaziken-mega": "Braségali-Méga",
+  "gengar-mega": "Ectoplasma-Méga",
+  "salamence-mega": "Drattak-Méga",
+};
+
+// ----------------------------
 // STATE
 // ----------------------------
 let POKEMONS = []; // { name(fr), en, points, banned }
 let frToEn = {};   // normalize(fr) -> en
-let enToFr = {}; // normalize(en) -> fr
+let enToFr = {};   // normalize(en) -> fr
 let sortMode = "AZ"; // "AZ" | "DESC" | "ASC"
 let team = []; // {name,en,points,banned}
 
@@ -277,9 +331,10 @@ const resetBtn = document.getElementById("resetBtn");
 const clearTeamBtn = document.getElementById("clearTeamBtn");
 const sortBtn = document.getElementById("sortBtn");
 const pokepasteBtn = document.getElementById("pokepasteBtn");
+const importPasteBtn = document.getElementById("importPasteBtn");
 
 // ----------------------------
-// INIT DEX (dex FR + mapping FR->EN + extras formes)
+// INIT DEX
 // ----------------------------
 async function initDex() {
   const [dexFrRes, frEnRes] = await Promise.all([
@@ -287,25 +342,20 @@ async function initDex() {
     fetch("./dex-gen1-7-fr-en.json"),
   ]);
 
-  const dexFR = await dexFrRes.json(); // ["Bulbizarre", ...] (807)
+  const dexFR = await dexFrRes.json(); // ["Bulbizarre", ...]
   const pairs = await frEnRes.json();  // [{fr,en}, ...]
-  // inverse: normalize(en) -> fr
-enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
 
-  frToEn = Object.fromEntries(
-    pairs.map(p => [normalize(p.fr), p.en])
-  );
+  frToEn = Object.fromEntries(pairs.map(p => [normalize(p.fr), p.en]));
+  enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
 
   const pointsByName = Object.fromEntries(
     BAREME.map(p => [normalize(p.name), p.points])
   );
 
-  // extras : tout ce qui n'existe pas dans la liste 807
+  // extras pour afficher formes (mega, avatar, etc.) + bannis
   const extras = [
     ...BAREME.map(p => p.name),
     ...BANNED_NAMES,
-
-    // sécurité : certaines formes qu'on veut voir
     "Deoxys-Vitesse",
     "Deoxys-Attaque",
     "Deoxys-Défense",
@@ -323,21 +373,16 @@ enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
   for (const name of extras) {
     const k = normalize(name);
     if (!existing.has(k)) {
-      allNames.push(name);
       existing.add(k);
+      allNames.push(name);
     }
   }
 
   POKEMONS = allNames.map((name) => {
     const k = normalize(name);
     const banned = BANNED.has(k);
-
-    // points (si banni => 0)
     const points = banned ? 0 : (pointsByName[k] ?? 0);
-
-    // EN (Showdown) pour recherche + pokepaste
     const en = SHOWDOWN_OVERRIDES[k] || frToEn[k] || name;
-
     return { name, en, points, banned };
   });
 
@@ -357,25 +402,15 @@ function filteredList() {
   const q = normalize(searchEl.value.trim());
 
   let list = q
-    ? POKEMONS.filter(p =>
-        normalize(p.name).includes(q) || normalize(p.en).includes(q)
-      )
+    ? POKEMONS.filter(p => normalize(p.name).includes(q) || normalize(p.en).includes(q))
     : [...POKEMONS];
 
   if (sortMode === "AZ") {
     list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
   } else if (sortMode === "DESC") {
-    // du plus fort au plus faible (points), tiebreaker A→Z
-    list.sort((a, b) => {
-      const d = (b.points || 0) - (a.points || 0);
-      return d !== 0 ? d : a.name.localeCompare(b.name, "fr");
-    });
+    list.sort((a, b) => ((b.points || 0) - (a.points || 0)) || a.name.localeCompare(b.name, "fr"));
   } else {
-    // "ASC" : du plus faible au plus fort
-    list.sort((a, b) => {
-      const d = (a.points || 0) - (b.points || 0);
-      return d !== 0 ? d : a.name.localeCompare(b.name, "fr");
-    });
+    list.sort((a, b) => ((a.points || 0) - (b.points || 0)) || a.name.localeCompare(b.name, "fr"));
   }
 
   return list;
@@ -399,7 +434,6 @@ function badgeClass(points, banned) {
 function renderResults(list) {
   resultsEl.innerHTML = "";
   resultCountEl.textContent = String(list.length);
-
   statusEl.textContent = team.length >= 6 ? "Équipe pleine (6/6)" : "";
 
   if (list.length === 0) {
@@ -491,16 +525,13 @@ function renderTeam() {
 }
 
 // ----------------------------
-// HEADER
+// HEADER + UPDATE
 // ----------------------------
 function renderHeader() {
   totalEl.textContent = String(totalPoints());
   teamCountEl.textContent = `${team.length} / 6`;
 }
 
-// ----------------------------
-// UPDATE
-// ----------------------------
 function updateResults() {
   renderResults(filteredList());
 }
@@ -512,13 +543,9 @@ function updateAll() {
 }
 
 // ----------------------------
-// POKÉPASTE (EN, importable Showdown)
+// POKÉPASTE EXPORT
 // ----------------------------
 function pokepasteText() {
-  // Format minimal importable Showdown :
-  // Species
-  //
-  // Species
   return team
     .map(p => (p.en || p.name).trim())
     .filter(Boolean)
@@ -553,236 +580,133 @@ function openPokePaste() {
 }
 
 // ----------------------------
-// POKÉPASTE IMPORT
+// POKÉPASTE IMPORT (GH Pages compatible)
 // ----------------------------
-
-// EN -> FR overrides (formes Showdown qui ne sont pas dans le JSON fr/en "simple")
-const EN_TO_FR_OVERRIDES = {
-  "kangaskhan-mega": "Méga-Kangourex",
-  "lucario-mega": "Méga-Lucario",
-  "sableye-mega": "Méga-Ténéfix",
-  "metagross-mega": "Méga-Métalosse",
-  "mawile-mega": "Méga-Mysdibule",
-  "diancie-mega": "Méga-Diancie",
-  "alakazam-mega": "Méga-Alakazam",
-  "gyarados-mega": "Méga-Léviator",
-  "swampert-mega": "Méga-Laggron",
-  "charizard-mega-x": "Méga Dracaufeu X",
-  "charizard-mega-y": "Méga-Dracaufeu Y",
-  "lopunny-mega": "Méga-Lockpin",
-  "pinsir-mega": "Méga-Scarabrute",
-  "scizor-mega": "Méga-Cizayox",
-  "medicham-mega": "Méga-Charmina",
-  "latios-mega": "Méga-Latios",
-  "tyranitar-mega": "Méga-Tyranocif",
-  "venusaur-mega": "Méga-Florizarre",
-  "latias-mega": "Méga-Latias",
-  "gallade-mega": "Méga-Gallame",
-  "manectric-mega": "Méga-Élecsprint",
-  "slowbro-mega": "Méga Flagadoss",
-  "heracross-mega": "Méga-Scarinho",
-  "garchomp-mega": "Méga-Carchacrok",
-  "gardevoir-mega": "Méga-Gardevoir",
-  "aerodactyl-mega": "Méga-Ptéra",
-  "altaria-mega": "Méga-Altaria",
-  "greninja-ash": "Sachanobi",
-  "deoxys-speed": "Deoxys-Vitesse",
-  "deoxys-attack": "Deoxys-Attaque",
-  "deoxys-defense": "Deoxys-Défense",
-  "landorus": "Démétéros Avatar",
-  "landorus-therian": "Démétéros-T",
-  "hoopa-unbound": "Hoopa Déchaîné",
-  "rotom-wash": "Motisma-Laveuse",
-  "marowak-alola": "Ossatueur-Alola",
-  "ninetales-alola": "Feunard-Alola",
-  "zygarde-50%": "Zygarde 50%",
-  "zygarde-complete": "Zygarde Complete",
-  "kyurem-black": "Kyurem Noir",
-  "kyurem-white": "Kyurem Blanc",
-  "tornadus-therian": "Boréas T",
-  "nihilego": "Zeroid",
-  "necrozma-dusk-mane": "Necrozma Dusk Mane",
-  "giratina-origin": "Giratina Origin",
-  "shaymin-sky": "Shaymin Sky",
-  "blaziken-mega": "Braségali-Méga",
-  "gengar-mega": "Ectoplasma-Méga",
-  "salamence-mega": "Drattak-Méga",
-};
-
-// on fabrique enToFr à partir du JSON fr/en (si dispo)
-
-async function fetchPokePasteRaw(id) {
-  // ⚠️ Nécessite le proxy local (voir plus bas)
-  const url = `http://localhost:3000/pokepaste/${id}`;
-  const r = await fetch(url, { cache: "no-store" });
-  if (!r.ok) throw new Error(`Proxy local: ${r.status}`);
-  return await r.text();
-}
-
-
-
-// extrait l'id depuis un lien pokepast
 function extractPokePasteId(input) {
   const s = (input || "").trim();
   const m = s.match(/pokepast\.es\/([a-f0-9]+)/i);
   if (m) return m[1];
-  // au cas où on colle juste l'id
   if (/^[a-f0-9]{16}$/i.test(s)) return s;
   return null;
 }
 
-// parse format showdown/pokepaste -> liste de "species" EN (1ere ligne de chaque set)
+// Parse Showdown blocks => species EN
 function parseSpeciesFromPaste(text) {
-  const blocks = text.replace(/\r/g, "").split(/\n{2,}/);
+  const blocks = String(text || "").replace(/\r/g, "").split(/\n{2,}/);
   const species = [];
 
   for (const block of blocks) {
     const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
     if (!lines.length) continue;
-
-    // ignorer les titres "=== [gen7ou] ..."
     if (lines[0].startsWith("===")) continue;
 
-    const first = lines[0]; // ex: "Nick (Skarmory) @ Leftovers" ou "Skarmory @ Leftovers"
-    let sp = first;
+    let first = lines[0];
 
-    // si "Nick (Species) ...", on récupère Species
-    const paren = sp.match(/\(([^)]+)\)/);
+    // Nick (Species) @ Item  -> Species (sauf (M)/(F))
+    const paren = first.match(/\(([^)]+)\)/);
     if (paren) {
-      sp = paren[1];
+      const inside = paren[1].trim();
+      if (!/^(m|f)$/i.test(inside)) first = inside;
     }
 
-    // enlever item "@ Item"
-    sp = sp.split("@")[0].trim();
+    // enlever item
+    first = first.split("@")[0].trim();
 
-    // enlever tags types " (M)" ou " (F)" restants
-    sp = sp.replace(/\s+\(M\)$|\s+\(F\)$/i, "").trim();
+    // enlever (M)/(F) n'importe où
+    first = first.replace(/\s*\((M|F)\)\s*/gi, " ").trim();
 
-    // parfois le paste contient "Species: X" ou "Species - X", normaliser
-    const colonMatch = sp.match(/(?:Species|Pokémon|Pokemon)\s*[:\-]\s*(.+)/i);
-    if (colonMatch) sp = colonMatch[1].trim();
+    // cleanup
+    first = first.replace(/\s{2,}/g, " ").trim();
 
-    if (sp) species.push(sp);
+    if (first) species.push(first);
   }
 
   return species;
 }
 
-// convertit un nom EN showdown -> FR UI
 function toFrenchNameFromEnglish(enName) {
   const k = normalize(enName);
-
-  // overrides d'abord
   if (EN_TO_FR_OVERRIDES[k]) return EN_TO_FR_OVERRIDES[k];
-
-  // mapping JSON (enToFr construit dans initDex)
   if (enToFr[k]) return enToFr[k];
-
-  // fallback: garde le anglais
   return enName;
 }
 
-async function importFromPokePaste(input) {
-  const id = extractPokePasteId(input);
-
-  // Si ce n'est pas un lien/ID valide, on traite comme texte direct
-  if (!id) {
-    await importFromPasteText(input);
-    return;
-  }
-
-  let pasteText = "";
-  try {
-    pasteText = await fetchPokePasteRaw(id);
-  } catch (e) {
-    // fallback propre : demander le texte au lieu de spammer des proxys
-    const txt = prompt(
-      "Impossible d'importer via lien (CORS).\n" +
-      "Colle le texte du PokéPaste (RAW / Import/Export Showdown) ici :"
-    );
-    if (!txt) return;
-    await importFromPasteText(txt);
-    return;
-  }
-
-  await importFromPasteText(pasteText);
-}
-
-async function importFromPasteText(pasteText) {
+function importFromPasteText(pasteText) {
   const enSpecies = parseSpeciesFromPaste(pasteText);
 
-  const picked = [];
-  const byNameFR = new Map(POKEMONS.map(p => [normalize(p.name), p]));
+  const byFr = new Map(POKEMONS.map(p => [normalize(p.name), p]));
+  const byEn = new Map(POKEMONS.map(p => [normalize(p.en), p]));
 
+  const picked = [];
   for (const en of enSpecies) {
     const fr = toFrenchNameFromEnglish(en);
-    const found = byNameFR.get(normalize(fr));
-    if (found) {
-      picked.push(found);
-      continue;
-    }
 
-    // fallback: match direct via en stocké
-    const byEn = POKEMONS.find(p => normalize(p.en) === normalize(en));
-    if (byEn) picked.push(byEn);
+    const a = byFr.get(normalize(fr));
+    if (a) { picked.push(a); continue; }
+
+    const b = byEn.get(normalize(en));
+    if (b) { picked.push(b); continue; }
+
+    console.warn("Import non reconnu:", en, "->", fr);
   }
 
   team = picked.slice(0, 6);
   updateAll();
+
+  const missing = Math.max(0, enSpecies.length - picked.length);
+  if (missing > 0) alert(`Import OK (${team.length}). ${missing} non reconnus (voir console).`);
 }
 
+function importFromPokePasteOrText(input) {
+  const id = extractPokePasteId(input);
+
+  // GH Pages: impossible de fetch pokepast.es => on demande le TEXTE
+  if (id) {
+    const txt = prompt(
+      "Sur GitHub Pages, l'import par lien est bloqué (CORS).\n" +
+      "Ouvre ton PokéPaste, copie le texte (Import/Export Showdown), puis colle-le ici :"
+    );
+    if (!txt) return;
+    importFromPasteText(txt);
+    return;
+  }
+
+  // Sinon: c'est du texte Showdown direct
+  importFromPasteText(input);
+}
 
 // ----------------------------
 // EVENTS
 // ----------------------------
 searchEl.addEventListener("input", updateResults);
 
-resetBtn.addEventListener("click", () => {
+resetBtn?.addEventListener("click", () => {
   searchEl.value = "";
   updateResults();
   searchEl.focus();
 });
 
-clearTeamBtn.addEventListener("click", () => {
+clearTeamBtn?.addEventListener("click", () => {
   team = [];
   updateAll();
 });
 
-if (sortBtn) {
-  sortBtn.addEventListener("click", () => {
-    sortMode =
-      sortMode === "AZ" ? "DESC" :
-      sortMode === "DESC" ? "ASC" :
-      "AZ";
+sortBtn?.addEventListener("click", () => {
+  sortMode = sortMode === "AZ" ? "DESC" : sortMode === "DESC" ? "ASC" : "AZ";
+  sortBtn.textContent =
+    sortMode === "AZ" ? "Tri: A→Z" :
+    sortMode === "DESC" ? "Tri: Points ↓" :
+    "Tri: Points ↑";
+  updateResults();
+});
 
-    sortBtn.textContent =
-      sortMode === "AZ" ? "Tri: A→Z" :
-      sortMode === "DESC" ? "Tri: Points ↓" :
-      "Tri: Points ↑";
+pokepasteBtn?.addEventListener("click", openPokePaste);
 
-    updateResults();
-  });
-}
-
-if (pokepasteBtn) {
-  pokepasteBtn.addEventListener("click", openPokePaste);
-}
-
-const importPasteBtn = document.getElementById("importPasteBtn");
-
-if (importPasteBtn) {
-  importPasteBtn.addEventListener("click", async () => {
-    const url = prompt("Colle le lien PokéPaste (ou l'ID) :");
-    if (!url) return;
-    try {
-      await importFromPokePaste(url);
-    } catch (e) {
-      console.error(e);
-      alert("Impossible d'importer ce PokéPaste (CORS/format).");
-    }
-  });
-}
-
+importPasteBtn?.addEventListener("click", () => {
+  const input = prompt("Colle un lien PokéPaste OU le texte Showdown :");
+  if (!input) return;
+  importFromPokePasteOrText(input);
+});
 
 // ----------------------------
 // START
