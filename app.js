@@ -1,11 +1,11 @@
 // ======================================================
-// Team Builder RPPLF — app.js (FULL)
-// - Dex FR gen1-7 + extras formes
+// Team Builder RPPLF — app.js
+// - Dex FR gen1-7 + formes utiles (mega, avatar, etc.)
 // - Recherche FR + EN
 // - Tri A→Z / Points ↓ / Points ↑
-// - BANNI (rouge, non cliquable)
+// - BANNI (rouge, non ajoutable)
 // - Export PokéPaste (EN Showdown)
-// - Import: colle TEXTE Showdown, ou un lien PokéPaste (demande le texte car CORS sur GitHub Pages)
+// - Import (UI à droite) via texte Showdown/PokéPaste (pas de fetch lien -> CORS safe)
 // ======================================================
 
 // ----------------------------
@@ -17,6 +17,8 @@ const normalize = (s) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
+
+const clamp6 = (arr) => arr.slice(0, 6);
 
 // ----------------------------
 // BARÈME (points)
@@ -152,7 +154,6 @@ const BAREME = [
 
 // ----------------------------
 // BANNIS (rouge, non ajoutables)
-// ⚠️ Deoxys-Vitesse N'EST PAS banni (il est à 10 pts)
 // ----------------------------
 const BANNED_NAMES = [
   "Mewtwo",
@@ -176,7 +177,7 @@ const BANNED_NAMES = [
   "Xerneas",
   "Yveltal",
   "Zygarde-Complète",
-  "Mouscoto", // Pheromosa (ton barème FR)
+  "Mouscoto", // Pheromosa
   "Solgaleo",
   "Lunala",
   "Necrozma-Crinière du Couchant",
@@ -190,7 +191,7 @@ const BANNED_NAMES = [
 const BANNED = new Set(BANNED_NAMES.map(normalize));
 
 // ----------------------------
-// Overrides Showdown (FR -> EN) pour formes/megAs
+// FR -> EN overrides (Showdown)
 // ----------------------------
 const SHOWDOWN_OVERRIDES_RAW = {
   // Megas
@@ -242,10 +243,12 @@ const SHOWDOWN_OVERRIDES_RAW = {
   "Kyurem-Blanc": "Kyurem-White",
   "Shaymin-Céleste": "Shaymin-Sky",
   "Giratina-Originel": "Giratina-Origin",
+  "Zygarde-50%": "Zygarde-50%",
+  "Zygarde 50%": "Zygarde-50%",
   "Zygarde-Complète": "Zygarde-Complete",
   "Necrozma-Crinière du Couchant": "Necrozma-Dusk-Mane",
 
-  // Ton barème écrit "Zeroid"
+  // ton barème écrit "Zeroid"
   "Zeroid": "Nihilego",
 };
 
@@ -254,7 +257,7 @@ const SHOWDOWN_OVERRIDES = Object.fromEntries(
 );
 
 // ----------------------------
-// IMPORT: EN -> FR overrides (formes Showdown)
+// EN -> FR overrides (import)
 // ----------------------------
 const EN_TO_FR_OVERRIDES = {
   "kangaskhan-mega": "Méga-Kangourex",
@@ -294,17 +297,13 @@ const EN_TO_FR_OVERRIDES = {
   "rotom-wash": "Motisma-Laveuse",
   "marowak-alola": "Ossatueur-Alola",
   "ninetales-alola": "Feunard-Alola",
-  "zygarde-50%": "Zygarde 50%",
   "kyurem-black": "Kyurem Noir",
-  "kyurem-white": "Kyurem Blanc",
-  "tornadus-therian": "Boréas T",
+  "kyurem-white": "Kyurem-Blanc",
+  "shaymin-sky": "Shaymin-Céleste",
+  "giratina-origin": "Giratina-Originel",
+  "zygarde-complete": "Zygarde-Complète",
+  "necrozma-dusk-mane": "Necrozma-Crinière du Couchant",
   "nihilego": "Zeroid",
-  "necrozma-dusk-mane": "Necrozma Dusk Mane",
-  "giratina-origin": "Giratina Origin",
-  "shaymin-sky": "Shaymin Sky",
-  "blaziken-mega": "Braségali-Méga",
-  "gengar-mega": "Ectoplasma-Méga",
-  "salamence-mega": "Drattak-Méga",
 };
 
 // ----------------------------
@@ -331,10 +330,9 @@ const resetBtn = document.getElementById("resetBtn");
 const clearTeamBtn = document.getElementById("clearTeamBtn");
 const sortBtn = document.getElementById("sortBtn");
 const pokepasteBtn = document.getElementById("pokepasteBtn");
-const importPasteBtn = document.getElementById("importPasteBtn");
 
 // ----------------------------
-// INIT DEX
+// INIT DEX (dex FR + mapping FR->EN + extras formes)
 // ----------------------------
 async function initDex() {
   const [dexFrRes, frEnRes] = await Promise.all([
@@ -342,17 +340,15 @@ async function initDex() {
     fetch("./dex-gen1-7-fr-en.json"),
   ]);
 
-  const dexFR = await dexFrRes.json(); // ["Bulbizarre", ...]
+  const dexFR = await dexFrRes.json(); // ["Bulbizarre", ...] (807)
   const pairs = await frEnRes.json();  // [{fr,en}, ...]
 
   frToEn = Object.fromEntries(pairs.map(p => [normalize(p.fr), p.en]));
   enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
 
-  const pointsByName = Object.fromEntries(
-    BAREME.map(p => [normalize(p.name), p.points])
-  );
+  const pointsByName = Object.fromEntries(BAREME.map(p => [normalize(p.name), p.points]));
 
-  // extras pour afficher formes (mega, avatar, etc.) + bannis
+  // extras : formes + bannis (pour qu'ils existent dans la liste)
   const extras = [
     ...BAREME.map(p => p.name),
     ...BANNED_NAMES,
@@ -365,6 +361,7 @@ async function initDex() {
     "Méga-Ectoplasma",
     "Méga-Braségali",
     "Méga-Drattak",
+    "Shaymin-Céleste",
   ];
 
   const existing = new Set(dexFR.map(n => normalize(n)));
@@ -386,6 +383,7 @@ async function initDex() {
     return { name, en, points, banned };
   });
 
+  mountImportUI(); // crée le panneau d'import dans la colonne de droite
   updateAll();
 }
 
@@ -447,7 +445,6 @@ function renderResults(list) {
 
   for (const p of list) {
     const disabled = p.banned || inTeam(p.name) || team.length >= 6;
-
     const row = document.createElement("button");
     row.type = "button";
     row.disabled = disabled;
@@ -476,6 +473,8 @@ function renderResults(list) {
 
     row.addEventListener("click", () => {
       if (p.banned) return;
+      if (team.length >= 6) return;
+      if (inTeam(p.name)) return;
       team.push(p);
       updateAll();
     });
@@ -531,11 +530,9 @@ function renderHeader() {
   totalEl.textContent = String(totalPoints());
   teamCountEl.textContent = `${team.length} / 6`;
 }
-
 function updateResults() {
   renderResults(filteredList());
 }
-
 function updateAll() {
   renderHeader();
   renderTeam();
@@ -543,13 +540,15 @@ function updateAll() {
 }
 
 // ----------------------------
-// POKÉPASTE EXPORT
+// POKÉPASTE EXPORT (EN Showdown minimal)
 // ----------------------------
 function pokepasteText() {
-  return team
-    .map(p => (p.en || p.name).trim())
-    .filter(Boolean)
-    .join("\n\n") + "\n";
+  return (
+    team
+      .map(p => (p.en || p.name).trim())
+      .filter(Boolean)
+      .join("\n\n") + "\n"
+  );
 }
 
 function openPokePaste() {
@@ -573,24 +572,21 @@ function openPokePaste() {
 
   form.appendChild(paste);
   form.appendChild(title);
-
   document.body.appendChild(form);
   form.submit();
   form.remove();
 }
 
 // ----------------------------
-// POKÉPASTE IMPORT (GH Pages compatible)
+// IMPORT (texte Showdown/PokéPaste)
 // ----------------------------
-function extractPokePasteId(input) {
-  const s = (input || "").trim();
-  const m = s.match(/pokepast\.es\/([a-f0-9]+)/i);
-  if (m) return m[1];
-  if (/^[a-f0-9]{16}$/i.test(s)) return s;
-  return null;
-}
 
-// Parse Showdown blocks => species EN
+// 1) Extract species from a showdown export block.
+// Handles:
+// - "Nidoking (M) @ Life Orb"
+// - "Nick (Skarmory) @ Leftovers"
+// - "Lucario-Mega @ Lucarionite"
+// - removes "@ item", "(M)/(F)", etc.
 function parseSpeciesFromPaste(text) {
   const blocks = String(text || "").replace(/\r/g, "").split(/\n{2,}/);
   const species = [];
@@ -598,25 +594,25 @@ function parseSpeciesFromPaste(text) {
   for (const block of blocks) {
     const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
     if (!lines.length) continue;
+
+    // ignore headers like "=== [gen7ou] ..."
     if (lines[0].startsWith("===")) continue;
 
     let first = lines[0];
 
-    // Nick (Species) @ Item  -> Species (sauf (M)/(F))
+    // If "Nick (Species) @ Item" -> keep inside parentheses
     const paren = first.match(/\(([^)]+)\)/);
-    if (paren) {
-      const inside = paren[1].trim();
-      if (!/^(m|f)$/i.test(inside)) first = inside;
-    }
+    if (paren) first = paren[1];
 
-    // enlever item
+    // Remove item part
     first = first.split("@")[0].trim();
 
-    // enlever (M)/(F) n'importe où
-    first = first.replace(/\s*\((M|F)\)\s*/gi, " ").trim();
+    // Remove trailing gender markers
+    first = first.replace(/\s+\((m|f)\)\s*$/i, "").trim();
 
-    // cleanup
-    first = first.replace(/\s{2,}/g, " ").trim();
+    // Sometimes there is still "Species: X"
+    const colon = first.match(/(?:species|pokemon|pokémon)\s*[:\-]\s*(.+)/i);
+    if (colon) first = colon[1].trim();
 
     if (first) species.push(first);
   }
@@ -628,51 +624,132 @@ function toFrenchNameFromEnglish(enName) {
   const k = normalize(enName);
   if (EN_TO_FR_OVERRIDES[k]) return EN_TO_FR_OVERRIDES[k];
   if (enToFr[k]) return enToFr[k];
-  return enName;
+  return enName; // fallback
 }
 
 function importFromPasteText(pasteText) {
   const enSpecies = parseSpeciesFromPaste(pasteText);
 
-  const byFr = new Map(POKEMONS.map(p => [normalize(p.name), p]));
-  const byEn = new Map(POKEMONS.map(p => [normalize(p.en), p]));
-
   const picked = [];
+  const byNameFR = new Map(POKEMONS.map(p => [normalize(p.name), p]));
+
   for (const en of enSpecies) {
+    // Try EN -> FR mapping
     const fr = toFrenchNameFromEnglish(en);
+    const foundFR = byNameFR.get(normalize(fr));
+    if (foundFR) {
+      picked.push(foundFR);
+      continue;
+    }
 
-    const a = byFr.get(normalize(fr));
-    if (a) { picked.push(a); continue; }
-
-    const b = byEn.get(normalize(en));
-    if (b) { picked.push(b); continue; }
-
-    console.warn("Import non reconnu:", en, "->", fr);
+    // Fallback: match directly by english name stored in POKEMONS
+    const foundEN = POKEMONS.find(p => normalize(p.en) === normalize(en));
+    if (foundEN) picked.push(foundEN);
   }
 
-  team = picked.slice(0, 6);
+  team = clamp6(picked);
   updateAll();
 
+  // return small stats for UI feedback
   const missing = Math.max(0, enSpecies.length - picked.length);
-  if (missing > 0) alert(`Import OK (${team.length}). ${missing} non reconnus (voir console).`);
+  return { imported: team.length, missing };
 }
 
-function importFromPokePasteOrText(input) {
-  const id = extractPokePasteId(input);
+// ----------------------------
+// IMPORT UI (in right column)
+// ----------------------------
+let importPanelEl = null;
+let importTextareaEl = null;
+let importMsgEl = null;
 
-  // GH Pages: impossible de fetch pokepast.es => on demande le TEXTE
-  if (id) {
-    const txt = prompt(
-      "Sur GitHub Pages, l'import par lien est bloqué (CORS).\n" +
-      "Ouvre ton PokéPaste, copie le texte (Import/Export Showdown), puis colle-le ici :"
-    );
-    if (!txt) return;
-    importFromPasteText(txt);
-    return;
+function mountImportUI() {
+  // Right section header row = the div that contains the buttons (PokePaste + Vider)
+  const rightButtonsRow = pokepasteBtn?.parentElement;
+  if (!rightButtonsRow) return;
+
+  // Create Importer button if not present
+  let importBtn = document.getElementById("importPasteBtn");
+  if (!importBtn) {
+    importBtn = document.createElement("button");
+    importBtn.id = "importPasteBtn";
+    importBtn.className =
+      "shrink-0 rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700";
+    importBtn.textContent = "Importer";
+    // Put between PokePaste and Vider
+    rightButtonsRow.insertBefore(importBtn, clearTeamBtn);
   }
 
-  // Sinon: c'est du texte Showdown direct
-  importFromPasteText(input);
+  // Create panel (hidden by default)
+  if (!importPanelEl) {
+    importPanelEl = document.createElement("div");
+    importPanelEl.id = "importPanel";
+    importPanelEl.className = "mt-3 hidden rounded-xl bg-slate-950/50 p-3 ring-1 ring-slate-800";
+
+    importPanelEl.innerHTML = `
+      <div class="text-sm text-slate-200 font-medium">Importer une team (texte Showdown)</div>
+      <div class="mt-1 text-xs text-slate-400">
+        L’import par lien est bloqué.
+        Ouvre le PokéPaste → <span class="font-semibold">Import/Export</span> → copie le texte → colle ici.
+      </div>
+
+      <textarea
+        id="importTextarea"
+        class="mt-3 w-full min-h-[180px] rounded-xl bg-slate-950/60 px-3 py-3 text-sm text-slate-100 ring-1 ring-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        placeholder="Colle ici le texte Showdown/PokéPaste (6 Pokémon)..."
+      ></textarea>
+
+      <div class="mt-3 flex items-center gap-2">
+        <button
+          id="importApplyBtn"
+          class="rounded-xl bg-indigo-500/15 px-4 py-2 text-sm font-medium text-indigo-200 ring-1 ring-indigo-500/30 hover:bg-indigo-500/25"
+        >
+          Importer
+        </button>
+        <button
+          id="importCloseBtn"
+          class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700"
+        >
+          Fermer
+        </button>
+        <div id="importMsg" class="ml-auto text-xs text-slate-400"></div>
+      </div>
+    `;
+
+    // Insert panel above the team grid
+    teamEl.parentElement.insertBefore(importPanelEl, teamEl);
+
+    importTextareaEl = importPanelEl.querySelector("#importTextarea");
+    importMsgEl = importPanelEl.querySelector("#importMsg");
+
+    const applyBtn = importPanelEl.querySelector("#importApplyBtn");
+    const closeBtn = importPanelEl.querySelector("#importCloseBtn");
+
+    applyBtn.addEventListener("click", () => {
+      const txt = importTextareaEl.value.trim();
+      if (!txt) {
+        importMsgEl.textContent = "Colle un texte d’abord.";
+        return;
+      }
+      const { imported, missing } = importFromPasteText(txt);
+      importMsgEl.textContent =
+        missing > 0
+          ? `✅ Importé: ${imported}. ⚠️ Non reconnus: ${missing}`
+          : `✅ Importé: ${imported}.`;
+    });
+
+    closeBtn.addEventListener("click", () => {
+      importPanelEl.classList.add("hidden");
+    });
+  }
+
+  // Toggle panel on button click
+  importBtn.addEventListener("click", () => {
+    importPanelEl.classList.toggle("hidden");
+    if (!importPanelEl.classList.contains("hidden")) {
+      importMsgEl.textContent = "";
+      importTextareaEl.focus();
+    }
+  });
 }
 
 // ----------------------------
@@ -680,33 +757,27 @@ function importFromPokePasteOrText(input) {
 // ----------------------------
 searchEl.addEventListener("input", updateResults);
 
-resetBtn?.addEventListener("click", () => {
+resetBtn.addEventListener("click", () => {
   searchEl.value = "";
   updateResults();
   searchEl.focus();
 });
 
-clearTeamBtn?.addEventListener("click", () => {
+clearTeamBtn.addEventListener("click", () => {
   team = [];
   updateAll();
 });
 
 sortBtn?.addEventListener("click", () => {
   sortMode = sortMode === "AZ" ? "DESC" : sortMode === "DESC" ? "ASC" : "AZ";
+
   sortBtn.textContent =
-    sortMode === "AZ" ? "Tri: A→Z" :
-    sortMode === "DESC" ? "Tri: Points ↓" :
-    "Tri: Points ↑";
+    sortMode === "AZ" ? "Tri: A→Z" : sortMode === "DESC" ? "Tri: Points ↓" : "Tri: Points ↑";
+
   updateResults();
 });
 
 pokepasteBtn?.addEventListener("click", openPokePaste);
-
-importPasteBtn?.addEventListener("click", () => {
-  const input = prompt("Colle un lien PokéPaste OU le texte Showdown :");
-  if (!input) return;
-  importFromPokePasteOrText(input);
-});
 
 // ----------------------------
 // START
