@@ -258,6 +258,7 @@ const SHOWDOWN_OVERRIDES = Object.fromEntries(
 // ----------------------------
 let POKEMONS = []; // { name(fr), en, points, banned }
 let frToEn = {};   // normalize(fr) -> en
+let enToFr = {}; // normalize(en) -> fr
 let sortMode = "AZ"; // "AZ" | "DESC" | "ASC"
 let team = []; // {name,en,points,banned}
 
@@ -288,6 +289,8 @@ async function initDex() {
 
   const dexFR = await dexFrRes.json(); // ["Bulbizarre", ...] (807)
   const pairs = await frEnRes.json();  // [{fr,en}, ...]
+  // inverse: normalize(en) -> fr
+enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
 
   frToEn = Object.fromEntries(
     pairs.map(p => [normalize(p.fr), p.en])
@@ -320,8 +323,8 @@ async function initDex() {
   for (const name of extras) {
     const k = normalize(name);
     if (!existing.has(k)) {
-      existing.add(k);
       allNames.push(name);
+      existing.add(k);
     }
   }
 
@@ -362,13 +365,17 @@ function filteredList() {
   if (sortMode === "AZ") {
     list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
   } else if (sortMode === "DESC") {
-    list.sort((a, b) =>
-      (b.points - a.points) || a.name.localeCompare(b.name, "fr")
-    );
-  } else if (sortMode === "ASC") {
-    list.sort((a, b) =>
-      (a.points - b.points) || a.name.localeCompare(b.name, "fr")
-    );
+    // du plus fort au plus faible (points), tiebreaker A→Z
+    list.sort((a, b) => {
+      const d = (b.points || 0) - (a.points || 0);
+      return d !== 0 ? d : a.name.localeCompare(b.name, "fr");
+    });
+  } else {
+    // "ASC" : du plus faible au plus fort
+    list.sort((a, b) => {
+      const d = (a.points || 0) - (b.points || 0);
+      return d !== 0 ? d : a.name.localeCompare(b.name, "fr");
+    });
   }
 
   return list;
@@ -546,6 +553,186 @@ function openPokePaste() {
 }
 
 // ----------------------------
+// POKÉPASTE IMPORT
+// ----------------------------
+
+// EN -> FR overrides (formes Showdown qui ne sont pas dans le JSON fr/en "simple")
+const EN_TO_FR_OVERRIDES = {
+  "kangaskhan-mega": "Méga-Kangourex",
+  "lucario-mega": "Méga-Lucario",
+  "sableye-mega": "Méga-Ténéfix",
+  "metagross-mega": "Méga-Métalosse",
+  "mawile-mega": "Méga-Mysdibule",
+  "diancie-mega": "Méga-Diancie",
+  "alakazam-mega": "Méga-Alakazam",
+  "gyarados-mega": "Méga-Léviator",
+  "swampert-mega": "Méga-Laggron",
+  "charizard-mega-x": "Méga Dracaufeu X",
+  "charizard-mega-y": "Méga-Dracaufeu Y",
+  "lopunny-mega": "Méga-Lockpin",
+  "pinsir-mega": "Méga-Scarabrute",
+  "scizor-mega": "Méga-Cizayox",
+  "medicham-mega": "Méga-Charmina",
+  "latios-mega": "Méga-Latios",
+  "tyranitar-mega": "Méga-Tyranocif",
+  "venusaur-mega": "Méga-Florizarre",
+  "latias-mega": "Méga-Latias",
+  "gallade-mega": "Méga-Gallame",
+  "manectric-mega": "Méga-Élecsprint",
+  "slowbro-mega": "Méga Flagadoss",
+  "heracross-mega": "Méga-Scarinho",
+  "garchomp-mega": "Méga-Carchacrok",
+  "gardevoir-mega": "Méga-Gardevoir",
+  "aerodactyl-mega": "Méga-Ptéra",
+  "altaria-mega": "Méga-Altaria",
+  "greninja-ash": "Sachanobi",
+  "deoxys-speed": "Deoxys-Vitesse",
+  "deoxys-attack": "Deoxys-Attaque",
+  "deoxys-defense": "Deoxys-Défense",
+  "landorus": "Démétéros Avatar",
+  "landorus-therian": "Démétéros-T",
+  "hoopa-unbound": "Hoopa Déchaîné",
+  "rotom-wash": "Motisma-Laveuse",
+  "marowak-alola": "Ossatueur-Alola",
+  "ninetales-alola": "Feunard-Alola",
+  "zygarde-50%": "Zygarde 50%",
+  "zygarde-complete": "Zygarde Complete",
+  "kyurem-black": "Kyurem Noir",
+  "kyurem-white": "Kyurem Blanc",
+  "tornadus-therian": "Boréas T",
+  "nihilego": "Zeroid",
+  "necrozma-dusk-mane": "Necrozma Dusk Mane",
+  "giratina-origin": "Giratina Origin",
+  "shaymin-sky": "Shaymin Sky",
+  "blaziken-mega": "Braségali-Méga",
+  "gengar-mega": "Ectoplasma-Méga",
+  "salamence-mega": "Drattak-Méga",
+};
+
+// on fabrique enToFr à partir du JSON fr/en (si dispo)
+
+async function fetchPokePasteRaw(id) {
+  // ⚠️ Nécessite le proxy local (voir plus bas)
+  const url = `http://localhost:3000/pokepaste/${id}`;
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`Proxy local: ${r.status}`);
+  return await r.text();
+}
+
+
+
+// extrait l'id depuis un lien pokepast
+function extractPokePasteId(input) {
+  const s = (input || "").trim();
+  const m = s.match(/pokepast\.es\/([a-f0-9]+)/i);
+  if (m) return m[1];
+  // au cas où on colle juste l'id
+  if (/^[a-f0-9]{16}$/i.test(s)) return s;
+  return null;
+}
+
+// parse format showdown/pokepaste -> liste de "species" EN (1ere ligne de chaque set)
+function parseSpeciesFromPaste(text) {
+  const blocks = text.replace(/\r/g, "").split(/\n{2,}/);
+  const species = [];
+
+  for (const block of blocks) {
+    const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) continue;
+
+    // ignorer les titres "=== [gen7ou] ..."
+    if (lines[0].startsWith("===")) continue;
+
+    const first = lines[0]; // ex: "Nick (Skarmory) @ Leftovers" ou "Skarmory @ Leftovers"
+    let sp = first;
+
+    // si "Nick (Species) ...", on récupère Species
+    const paren = sp.match(/\(([^)]+)\)/);
+    if (paren) {
+      sp = paren[1];
+    }
+
+    // enlever item "@ Item"
+    sp = sp.split("@")[0].trim();
+
+    // enlever tags types " (M)" ou " (F)" restants
+    sp = sp.replace(/\s+\(M\)$|\s+\(F\)$/i, "").trim();
+
+    // parfois le paste contient "Species: X" ou "Species - X", normaliser
+    const colonMatch = sp.match(/(?:Species|Pokémon|Pokemon)\s*[:\-]\s*(.+)/i);
+    if (colonMatch) sp = colonMatch[1].trim();
+
+    if (sp) species.push(sp);
+  }
+
+  return species;
+}
+
+// convertit un nom EN showdown -> FR UI
+function toFrenchNameFromEnglish(enName) {
+  const k = normalize(enName);
+
+  // overrides d'abord
+  if (EN_TO_FR_OVERRIDES[k]) return EN_TO_FR_OVERRIDES[k];
+
+  // mapping JSON (enToFr construit dans initDex)
+  if (enToFr[k]) return enToFr[k];
+
+  // fallback: garde le anglais
+  return enName;
+}
+
+async function importFromPokePaste(input) {
+  const id = extractPokePasteId(input);
+
+  // Si ce n'est pas un lien/ID valide, on traite comme texte direct
+  if (!id) {
+    await importFromPasteText(input);
+    return;
+  }
+
+  let pasteText = "";
+  try {
+    pasteText = await fetchPokePasteRaw(id);
+  } catch (e) {
+    // fallback propre : demander le texte au lieu de spammer des proxys
+    const txt = prompt(
+      "Impossible d'importer via lien (CORS).\n" +
+      "Colle le texte du PokéPaste (RAW / Import/Export Showdown) ici :"
+    );
+    if (!txt) return;
+    await importFromPasteText(txt);
+    return;
+  }
+
+  await importFromPasteText(pasteText);
+}
+
+async function importFromPasteText(pasteText) {
+  const enSpecies = parseSpeciesFromPaste(pasteText);
+
+  const picked = [];
+  const byNameFR = new Map(POKEMONS.map(p => [normalize(p.name), p]));
+
+  for (const en of enSpecies) {
+    const fr = toFrenchNameFromEnglish(en);
+    const found = byNameFR.get(normalize(fr));
+    if (found) {
+      picked.push(found);
+      continue;
+    }
+
+    // fallback: match direct via en stocké
+    const byEn = POKEMONS.find(p => normalize(p.en) === normalize(en));
+    if (byEn) picked.push(byEn);
+  }
+
+  team = picked.slice(0, 6);
+  updateAll();
+}
+
+
+// ----------------------------
 // EVENTS
 // ----------------------------
 searchEl.addEventListener("input", updateResults);
@@ -580,6 +767,22 @@ if (sortBtn) {
 if (pokepasteBtn) {
   pokepasteBtn.addEventListener("click", openPokePaste);
 }
+
+const importPasteBtn = document.getElementById("importPasteBtn");
+
+if (importPasteBtn) {
+  importPasteBtn.addEventListener("click", async () => {
+    const url = prompt("Colle le lien PokéPaste (ou l'ID) :");
+    if (!url) return;
+    try {
+      await importFromPokePaste(url);
+    } catch (e) {
+      console.error(e);
+      alert("Impossible d'importer ce PokéPaste (CORS/format).");
+    }
+  });
+}
+
 
 // ----------------------------
 // START
