@@ -1,0 +1,24 @@
+:root {
+  color-scheme: dark;
+}
+
+.scroll-area::-webkit-scrollbar {
+  width: 10px;
+}
+
+.scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25); /* slate-400 */
+  border-radius: 999px;
+}
+
+.scroll-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.35); 
+}
