@@ -114,6 +114,7 @@ const BAREME = [
   { name: "Ossatueur-Alola", points: 2 },
   { name: "Méga-Scarinho", points: 2 },
   { name: "Latios", points: 2 },
+  { name: "Méga-Tortank", points: 0 },
   { name: "Carchacrok", points: 2 },
   { name: "Méga-Carchacrok", points: 2 },
   { name: "Ama-Ama", points: 2 },
@@ -227,6 +228,7 @@ const SHOWDOWN_OVERRIDES_RAW = {
   "Méga-Braségali": "Blaziken-Mega",
   "Méga-Ectoplasma": "Gengar-Mega",
   "Méga-Drattak": "Salamence-Mega",
+  "Méga-Tortank": "Blastoise-Mega",
 
   // Formes
   "Sachanobi": "Greninja-Ash",
@@ -306,6 +308,9 @@ const EN_TO_FR_OVERRIDES = {
   "nihilego": "Zeroid",
 };
 
+// EN -> FR override for Mega Blastoise
+EN_TO_FR_OVERRIDES["blastoise-mega"] = "Méga-Tortank";
+
 // ----------------------------
 // STATE
 // ----------------------------
@@ -373,6 +378,12 @@ async function initDex() {
       existing.add(k);
       allNames.push(name);
     }
+  }
+
+  // Ensure Mega Blastoise exists in extras
+  if (!existing.has(normalize("Méga-Tortank"))) {
+    existing.add(normalize("Méga-Tortank"));
+    allNames.push("Méga-Tortank");
   }
 
   POKEMONS = allNames.map((name) => {
