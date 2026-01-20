@@ -62,6 +62,52 @@ function canonicalizeEnglishName(raw) {
     terapagosstellar: "Terapagos-Stellar",
     terapagosterastal: "Terapagos-Terastal",
 
+      // Aegislash (formes de combat)
+  aegislashblade: "Aegislash",
+  aegislashshield: "Aegislash",
+
+  // Palafin (Hero form)
+  palafinhero: "Palafin",
+
+  // Mimikyu (Busted form)
+  mimikyubusted: "Mimikyu",
+
+  // Wishiwashi (Schooling)
+  wishiwashischool: "Wishiwashi",
+
+  // Minior (Core / couleurs)
+  miniorcore: "Minior",
+  miniormeteor: "Minior",
+
+  // Eiscue (Noice face)
+  eiscuenoice: "Eiscue",
+
+  // Darmanitan (Zen Mode)
+  darmanitanzen: "Darmanitan",
+  darmanitanstandard: "Darmanitan", // au cas où un dex le liste
+  darmanitangalarzen: "Darmanitan-Galar",
+  darmanitangalarstandard: "Darmanitan-Galar",
+
+  // Cramorant (formes Gulping/Gorging)
+  cramorantgulping: "Cramorant",
+  cramorantgorging: "Cramorant",
+
+  // Morpeko (Hangry mode)
+  morpekohangry: "Morpeko",
+
+  // Meloetta (Pirouette)
+  meloettapirouette: "Meloetta",
+
+  // Necrozma (Ultra) — si jamais un dex le sort séparé (souvent banni chez toi)
+  necrozmaultra: "Necrozma",
+
+  // Greninja battle-only forms
+  greninjabond: "Greninja",
+  greninjaash: "Greninja",
+
+  // Zygarde (Complete) — idem (souvent banni chez toi)
+  zygardecomplete: "Zygarde",
+
     // minor common typos
     pyrobut: "Cinderace",
     hipppowdown: "Hippowdon",
@@ -669,18 +715,25 @@ async function loadDexForGen(gen) {
   ];
 
   const allEN = (() => {
-    const seen = new Set();
-    const out = [];
-    const push = (x) => {
-      const k = normalize(x);
-      if (!k || seen.has(k)) return;
-      seen.add(k);
-      out.push(x);
-    };
-    dexEN.forEach(push);
-    extrasEN.forEach(push);
-    return out;
-  })();
+  const seen = new Set();
+  const out = [];
+  const push = (x) => {
+    if (!x) return;
+
+    // ✅ clé de dédoublonnage basée sur le nom canonicalisé
+    const canon = canonicalizeEnglishName(x);
+    const k = normalize(canon);
+    if (!k || seen.has(k)) return;
+
+    seen.add(k);
+    // ✅ on stocke directement la version canonicalisée
+    out.push(canon);
+  };
+
+  dexEN.forEach(push);
+  extrasEN.forEach(push);
+  return out;
+})();
 
   POKEMONS = allEN.map((enRaw) => {
     const enCanon = canonicalizeEnglishName(enRaw);
