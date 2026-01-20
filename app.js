@@ -1,11 +1,12 @@
 // ======================================================
-// Team Builder RPPLF — app.js
-// - Dex FR gen1-7 + formes utiles (mega, avatar, etc.)
+// Team Builder RPPLF — app.js (Gen7/Gen9 switch)
+// Gen7: ton dex FR + mapping FR<->EN
+// Gen9: dex "comme Showdown teambuilder" (EN complet) + affichage FR si dispo
 // - Recherche FR + EN
 // - Tri A→Z / Points ↓ / Points ↑
 // - BANNI (rouge, non ajoutable)
 // - Export PokéPaste (EN Showdown)
-// - Import (UI à droite) via texte Showdown/PokéPaste (pas de fetch lien -> CORS safe)
+// - Import via texte Showdown/PokéPaste
 // ======================================================
 
 // ----------------------------
@@ -20,11 +21,62 @@ const normalize = (s) =>
 
 const clamp6 = (arr) => arr.slice(0, 6);
 
+// Canonicalise certains alias EN pour matcher Showdown / mapping
+function canonicalizeEnglishName(raw) {
+  const k = normalize(raw);
+
+  const ALIASES = {
+    // Ogerpon masks
+    ogerponwater: "Ogerpon-Wellspring",
+    ogerponwellspring: "Ogerpon-Wellspring",
+    ogerponfire: "Ogerpon-Hearthflame",
+    ogerponhearthflame: "Ogerpon-Hearthflame",
+    ogerponrock: "Ogerpon-Cornerstone",
+    ogerponcornerstone: "Ogerpon-Cornerstone",
+
+    // Ursaluna Bloodmoon
+    ursalunabloodmoon: "Ursaluna-Bloodmoon",
+
+    // Urshifu forms
+    urshifusinglestrike: "Urshifu",
+    urshifurapidstrike: "Urshifu-Rapid-Strike",
+
+    // Hisui naming
+    sneaslerhisui: "Sneasler",
+    samurotthisui: "Samurott-Hisui",
+    lilliganthisui: "Lilligant-Hisui",
+
+    // Galar naming
+    slowkinggalar: "Slowking-Galar",
+
+    // Deoxys forms
+    deoxysspeed: "Deoxys-Speed",
+    deoxysattack: "Deoxys-Attack",
+    deoxysdefense: "Deoxys-Defense",
+
+    // Calyrex
+    calyrexshadow: "Calyrex-Shadow",
+    calyrexice: "Calyrex-Ice",
+
+    // Terapagos forms
+    terapagosstellar: "Terapagos-Stellar",
+    terapagosterastal: "Terapagos-Terastal",
+
+    // minor common typos
+    pyrobut: "Cinderace",
+    hipppowdown: "Hippowdon",
+    hippowdown: "Hippowdon",
+    pelitoat: "Politoed",
+    pelitoed: "Politoed",
+  };
+
+  return ALIASES[k] || raw;
+}
+
 // ----------------------------
-// BARÈME (points)
+// GEN 7 DATA
 // ----------------------------
-const BAREME = [
-  // 10
+const BAREME_GEN7 = [
   { name: "Méga-Kangourex", points: 10 },
   { name: "Deoxys-Vitesse", points: 10 },
   { name: "Genesect", points: 10 },
@@ -32,13 +84,11 @@ const BAREME = [
   { name: "Démétéros Avatar", points: 10 },
   { name: "Zygarde 50%", points: 10 },
 
-  // 8
   { name: "Braségali", points: 8 },
   { name: "Méga-Ténéfix", points: 8 },
   { name: "Méga-Métalosse", points: 8 },
   { name: "Mandrillon", points: 8 },
 
-  // 6
   { name: "Pyrax", points: 6 },
   { name: "Méga-Mysdibule", points: 6 },
   { name: "Méga-Diancie", points: 6 },
@@ -49,7 +99,6 @@ const BAREME = [
   { name: "Tokopiyon", points: 6 },
   { name: "Méga-Alakazam", points: 6 },
 
-  // 5
   { name: "Kyurem Noir", points: 5 },
   { name: "Méga-Léviator", points: 5 },
   { name: "Méga-Laggron", points: 5 },
@@ -59,7 +108,6 @@ const BAREME = [
   { name: "Pierroteknik", points: 5 },
   { name: "Tokorico", points: 5 },
 
-  // 4
   { name: "Méga-Scarabrute", points: 4 },
   { name: "Méga-Cizayox", points: 4 },
   { name: "Manaphy", points: 4 },
@@ -78,7 +126,6 @@ const BAREME = [
   { name: "Méga-Tyranocif", points: 4 },
   { name: "Bamboiselle", points: 4 },
 
-  // 3
   { name: "Méga-Florizarre", points: 3 },
   { name: "Bekipan", points: 3 },
   { name: "Chartor", points: 3 },
@@ -102,7 +149,6 @@ const BAREME = [
   { name: "Ekaïser", points: 3 },
   { name: "Mew", points: 3 },
 
-  // 2
   { name: "Hoopa Déchaîné", points: 2 },
   { name: "Méga-Gallame", points: 2 },
   { name: "Métamorph", points: 2 },
@@ -135,7 +181,6 @@ const BAREME = [
   { name: "Porygon-Z", points: 2 },
   { name: "Mimiqui", points: 2 },
 
-  // 1
   { name: "Méga-Gardevoir", points: 1 },
   { name: "Méga-Ptéra", points: 1 },
   { name: "Méga-Altaria", points: 1 },
@@ -152,49 +197,17 @@ const BAREME = [
   { name: "Volcanion", points: 1 },
 ];
 
-// ----------------------------
-// BANNIS (rouge, non ajoutables)
-// ----------------------------
-const BANNED_NAMES = [
-  "Mewtwo",
-  "Lugia",
-  "Ho-Oh",
-  "Groudon",
-  "Kyogre",
-  "Rayquaza",
-  "Deoxys-Attaque",
-  "Deoxys-Défense",
-  "Palkia",
-  "Dialga",
-  "Giratina",
-  "Giratina-Originel",
-  "Darkrai",
-  "Shaymin-Céleste",
-  "Arceus",
-  "Kyurem-Blanc",
-  "Reshiram",
-  "Zekrom",
-  "Xerneas",
-  "Yveltal",
-  "Zygarde-Complète",
-  "Mouscoto", // Pheromosa
-  "Solgaleo",
-  "Lunala",
-  "Necrozma-Crinière du Couchant",
-  "Marshadow",
-  "Gothitelle",
-  "Méga-Braségali",
-  "Méga-Ectoplasma",
-  "Méga-Drattak",
+const BANNED_NAMES_GEN7 = [
+  "Mewtwo","Lugia","Ho-Oh","Groudon","Kyogre","Rayquaza",
+  "Deoxys-Attaque","Deoxys-Défense",
+  "Palkia","Dialga","Giratina","Giratina-Originel","Darkrai",
+  "Shaymin-Céleste","Arceus","Kyurem-Blanc","Reshiram","Zekrom",
+  "Xerneas","Yveltal","Zygarde-Complète","Mouscoto","Solgaleo","Lunala",
+  "Necrozma-Crinière du Couchant","Marshadow","Gothitelle",
+  "Méga-Braségali","Méga-Ectoplasma","Méga-Drattak",
 ];
 
-const BANNED = new Set(BANNED_NAMES.map(normalize));
-
-// ----------------------------
-// FR -> EN overrides (Showdown)
-// ----------------------------
-const SHOWDOWN_OVERRIDES_RAW = {
-  // Megas
+const SHOWDOWN_OVERRIDES_GEN7_RAW = {
   "Méga-Kangourex": "Kangaskhan-Mega",
   "Méga-Lucario": "Lucario-Mega",
   "Méga-Ténéfix": "Sableye-Mega",
@@ -227,9 +240,7 @@ const SHOWDOWN_OVERRIDES_RAW = {
   "Méga-Braségali": "Blaziken-Mega",
   "Méga-Ectoplasma": "Gengar-Mega",
   "Méga-Drattak": "Salamence-Mega",
-  "Méga-Tortank": "Blastoise-Mega",
 
-  // Formes
   "Sachanobi": "Greninja-Ash",
   "Deoxys-Vitesse": "Deoxys-Speed",
   "Deoxys-Attaque": "Deoxys-Attack",
@@ -244,25 +255,13 @@ const SHOWDOWN_OVERRIDES_RAW = {
   "Kyurem-Blanc": "Kyurem-White",
   "Shaymin-Céleste": "Shaymin-Sky",
   "Giratina-Originel": "Giratina-Origin",
-  "Zygarde-50%": "Zygarde-50%",
-  "Zygarde 50%": "Zygarde-50%",
   "Zygarde-Complète": "Zygarde-Complete",
-  "Necrozma-Crinière du Couchant": "Necrozma-Dusk-Mane",
-
-  // ton barème écrit "Zeroid"
+  "Zygarde 50%": "Zygarde-50%",
   "Zeroid": "Nihilego",
 };
 
-const SHOWDOWN_OVERRIDES = Object.fromEntries(
-  Object.entries(SHOWDOWN_OVERRIDES_RAW).map(([k, v]) => [normalize(k), v])
-);
-
-// ----------------------------
-// EN -> FR overrides (import)
-// ----------------------------
-const EN_TO_FR_OVERRIDES = {
+const EN_TO_FR_OVERRIDES_GEN7 = {
   "kangaskhan-mega": "Méga-Kangourex",
-  "blastoise-mega": "Méga-Tortank",
   "lucario-mega": "Méga-Lucario",
   "sableye-mega": "Méga-Ténéfix",
   "metagross-mega": "Méga-Métalosse",
@@ -304,18 +303,201 @@ const EN_TO_FR_OVERRIDES = {
   "shaymin-sky": "Shaymin-Céleste",
   "giratina-origin": "Giratina-Originel",
   "zygarde-complete": "Zygarde-Complète",
-  "necrozma-dusk-mane": "Necrozma-Crinière du Couchant",
   "nihilego": "Zeroid",
 };
 
 // ----------------------------
+// GEN 9 DATA (barème + bans donnés par toi)
+// ----------------------------
+const BAREME_GEN9 = [
+  { name: "Shaymin-Sky", points: 10 },
+  { name: "Urshifu Single Strike", points: 10 },
+  { name: "Palafin", points: 10 },
+  { name: "Chien-Pao", points: 10 },
+  { name: "Iron Bundle", points: 10 },
+
+  { name: "Zamazenta", points: 8 },
+  { name: "Landorus", points: 8 },
+
+  { name: "Darkrai", points: 6 },
+  { name: "Urshifu Rapid Strike", points: 6 },
+  { name: "Baxcalibur", points: 6 },
+  { name: "Iron Valiant", points: 6 },
+  { name: "Walking Wake", points: 6 },
+  { name: "Ursaluna Bloodmoon", points: 6 },
+  { name: "Gouging Fire", points: 6 },
+  { name: "Deoxys-Speed", points: 6 },
+
+  { name: "Kyurem", points: 5 },
+  { name: "Sneasler Hisui", points: 5 },
+  { name: "Dondozo", points: 5 },
+  { name: "Kingambit", points: 5 },
+  { name: "Great Tusk", points: 5 },
+  { name: "Roaring Moon", points: 5 },
+  { name: "Archaludon", points: 5 },
+
+  { name: "Volcarona", points: 4 },
+  { name: "Hawlucha", points: 4 },
+  { name: "Dragapult", points: 4 },
+  { name: "Ursaluna", points: 4 },
+  { name: "Enamorus", points: 4 },
+  { name: "Espathra", points: 4 },
+  { name: "Annihilape", points: 4 },
+  { name: "Gholdengo", points: 4 },
+  { name: "Ting-Lu", points: 4 },
+  { name: "Ogerpon Water", points: 4 },
+  { name: "Ogerpon Fire", points: 4 },
+  { name: "Raging Bolt", points: 4 },
+
+  { name: "Torkoal", points: 3 },
+  { name: "Pelipper", points: 3 },
+  { name: "Gliscor", points: 3 },
+  { name: "Heatran", points: 3 },
+  { name: "Landorus-Therian", points: 3 },
+  { name: "Greninja", points: 3 },
+  { name: "Rillaboom", points: 3 },
+  { name: "Slowking-Galar", points: 3 },
+  { name: "Samurott Hisui", points: 3 },
+  { name: "Garganacl", points: 3 },
+  { name: "Iron Crown", points: 3 },
+  { name: "Alomomola", points: 3 },
+  { name: "Iron Moth", points: 3 },
+
+  { name: "Ninetales", points: 2 },
+  { name: "Chansey", points: 2 },
+  { name: "Zapdos", points: 2 },
+  { name: "Blissey", points: 2 },
+  { name: "Tyranitar", points: 2 },
+  { name: "Blaziken", points: 2 },
+  { name: "Garchomp", points: 2 },
+  { name: "Excadrill", points: 2 },
+  { name: "Manaphy", points: 2 },
+  { name: "Keldeo", points: 2 },
+  { name: "Ninetales-Alola", points: 2 },
+  { name: "Cinderace", points: 2 },
+  { name: "Corviknight", points: 2 },
+  { name: "Hatterene", points: 2 },
+  { name: "Barraskewda", points: 2 },
+  { name: "Meowscarada", points: 2 },
+  { name: "Ceruledge", points: 2 },
+  { name: "Iron Treads", points: 2 },
+  { name: "Ogerpon Rock", points: 2 },
+  { name: "Pecharunt", points: 2 },
+  { name: "Sinistcha", points: 2 },
+  { name: "Moltres", points: 2 },
+
+  { name: "Clefable", points: 1 },
+  { name: "Dugtrio", points: 1 },
+  { name: "Ditto", points: 1 },
+  { name: "Amoonguss", points: 1 },
+  { name: "Serperior", points: 1 },
+  { name: "Dragonite", points: 1 },
+  { name: "Politoed", points: 1 },
+  { name: "Latios", points: 1 },
+  { name: "Hippowdon", points: 1 },
+  { name: "Floatzel", points: 1 },
+  { name: "Cresselia", points: 1 },
+  { name: "Hoopa-Unbound", points: 1 },
+  { name: "Primarina", points: 1 },
+  { name: "Ribombee", points: 1 },
+  { name: "Toxapex", points: 1 },
+  { name: "Indeedee", points: 1 },
+  { name: "Lilligant Hisui", points: 1 },
+  { name: "Quaquaval", points: 1 },
+  { name: "Clodsire", points: 1 },
+  { name: "Glimmora", points: 1 },
+  { name: "Iron Hands", points: 1 },
+  { name: "Tornadus-Therian", points: 1 },
+];
+
+const BANNED_NAMES_GEN9 = [
+  "Mewtwo","Lugia","Ho-Oh","Groudon","Kyogre","Rayquaza",
+  "Deoxys-Attack",
+  "Dialga","Dialga-Origin",
+  "Palkia","Palkia-Origin",
+  "Giratina","Giratina-Origin",
+  "Arceus",
+  "Kyurem-Black","Kyurem-White",
+  "Reshiram","Zekrom",
+  "Solgaleo","Lunala",
+  "Necrozma",
+  "Magearna",
+  "Zacian","Zacian-Crowned",
+  "Zamazenta-Crowned",
+  "Eternatus",
+  "Spectrier",
+  "Calyrex-Shadow","Calyrex-Ice",
+  "Flutter Mane",
+  "Chi-Yu",
+  "Koraidon","Miraidon",
+  "Terapagos",
+  "Gothitelle",
+];
+
+const SHOWDOWN_OVERRIDES_GEN9_RAW = {};
+const EN_TO_FR_OVERRIDES_GEN9 = {
+  "ogerpon-wellspring": "Ogerpon-Wellspring",
+  "ogerpon-hearthflame": "Ogerpon-Hearthflame",
+  "ogerpon-cornerstone": "Ogerpon-Cornerstone",
+  "ursaluna-bloodmoon": "Ursaluna-Bloodmoon",
+  "urshifu-rapid-strike": "Urshifu-Rapid-Strike",
+  "samurott-hisui": "Samurott-Hisui",
+  "lilligant-hisui": "Lilligant-Hisui",
+  "slowking-galar": "Slowking-Galar",
+  "deoxys-speed": "Deoxys-Speed",
+  "deoxys-attack": "Deoxys-Attack",
+  "deoxys-defense": "Deoxys-Defense",
+  "calyrex-shadow": "Calyrex-Shadow",
+  "calyrex-ice": "Calyrex-Ice",
+  "terapagos-stellar": "Terapagos-Stellar",
+  "terapagos-terastal": "Terapagos-Terastal",
+};
+
+// ----------------------------
+// CONFIG PAR GEN
+// ----------------------------
+function buildOverrides(raw) {
+  return Object.fromEntries(Object.entries(raw).map(([k, v]) => [normalize(k), v]));
+}
+
+function getGenConfig(gen) {
+  if (gen === 9) {
+    return {
+      gen: 9,
+      dexEnPath: "./dex-en-showdown-gen9.json",
+      mapFrEnPath: "./dex-gen9-fr-en.json",
+      mapFrEnPathExtra: "./dex-gen1-7-fr-en.json",
+      bareme: BAREME_GEN9,
+      bannedNames: BANNED_NAMES_GEN9,
+      showdownOverrides: buildOverrides(SHOWDOWN_OVERRIDES_GEN9_RAW),
+      enToFrOverrides: EN_TO_FR_OVERRIDES_GEN9,
+      title: "Gen: 9",
+    };
+  }
+
+  return {
+    gen: 7,
+    dexFrPath: "./dex-fr-gen1-7.json",
+    mapFrEnPath: "./dex-gen1-7-fr-en.json",
+    bareme: BAREME_GEN7,
+    bannedNames: BANNED_NAMES_GEN7,
+    showdownOverrides: buildOverrides(SHOWDOWN_OVERRIDES_GEN7_RAW),
+    enToFrOverrides: EN_TO_FR_OVERRIDES_GEN7,
+    title: "Gen: 7",
+  };
+}
+
+// ----------------------------
 // STATE
 // ----------------------------
-let POKEMONS = []; // { name(fr), en, points, banned }
+let currentGen = 7;
+let CONFIG = getGenConfig(currentGen);
+
+let POKEMONS = []; // { name(display), en, points, banned }
 let frToEn = {};   // normalize(fr) -> en
 let enToFr = {};   // normalize(en) -> fr
-let sortMode = "AZ"; // "AZ" | "DESC" | "ASC"
-let team = []; // {name,en,points,banned}
+let sortMode = "AZ";
+let team = [];
 
 // ----------------------------
 // DOM
@@ -332,62 +514,198 @@ const resetBtn = document.getElementById("resetBtn");
 const clearTeamBtn = document.getElementById("clearTeamBtn");
 const sortBtn = document.getElementById("sortBtn");
 const pokepasteBtn = document.getElementById("pokepasteBtn");
+const genBtn = document.getElementById("genBtn");
 
 // ----------------------------
-// INIT DEX (dex FR + mapping FR->EN + extras formes)
+// NAME CONVERT (EN -> FR)
 // ----------------------------
-async function initDex() {
-  const [dexFrRes, frEnRes] = await Promise.all([
-    fetch("./dex-fr-gen1-7.json"),
-    fetch("./dex-gen1-7-fr-en.json"),
+function toFrenchNameFromEnglish(enName) {
+  const canon = canonicalizeEnglishName(enName);
+  const k = normalize(canon);
+
+  if (CONFIG.enToFrOverrides && CONFIG.enToFrOverrides[k]) return CONFIG.enToFrOverrides[k];
+  if (enToFr && enToFr[k]) return enToFr[k];
+
+  // fallback: on garde EN si on n'a pas la trad
+  return canon;
+}
+
+// ----------------------------
+// DEX LOADER
+// ----------------------------
+function addBothKeysToMap(map, nameAny, value, { frToEnLocal, enToFrLocal }) {
+  if (!nameAny) return;
+
+  map[normalize(nameAny)] = value;
+
+  const k = normalize(canonicalizeEnglishName(nameAny));
+  if (enToFrLocal && enToFrLocal[k]) {
+    map[normalize(enToFrLocal[k])] = value;
+    map[k] = value;
+  }
+
+  const kfr = normalize(nameAny);
+  if (frToEnLocal && frToEnLocal[kfr]) {
+    map[normalize(frToEnLocal[kfr])] = value;
+  }
+}
+
+async function loadDexForGen(gen) {
+  CONFIG = getGenConfig(gen);
+
+  // --- GEN7: comme avant ---
+  if (gen === 7) {
+    const [dexFrRes, frEnRes] = await Promise.all([
+      fetch(CONFIG.dexFrPath),
+      fetch(CONFIG.mapFrEnPath),
+    ]);
+
+    let dexFR = await dexFrRes.json();
+    const pairs = await frEnRes.json();
+
+    frToEn = Object.fromEntries(pairs.map(p => [normalize(p.fr), p.en]));
+    enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
+
+    const pointsByName = {};
+    for (const it of CONFIG.bareme) {
+      const nm = canonicalizeEnglishName(it.name);
+      addBothKeysToMap(pointsByName, nm, it.points, { frToEnLocal: frToEn, enToFrLocal: enToFr });
+    }
+
+    const bannedSet = new Set();
+    const addBan = (nm) => {
+      const canon = canonicalizeEnglishName(nm);
+      bannedSet.add(normalize(canon));
+      bannedSet.add(normalize(nm));
+      const ken = normalize(canon);
+      if (enToFr[ken]) bannedSet.add(normalize(enToFr[ken]));
+      const kfr = normalize(nm);
+      if (frToEn[kfr]) bannedSet.add(normalize(frToEn[kfr]));
+    };
+    for (const nm of CONFIG.bannedNames) addBan(nm);
+
+    const bannedPrefixes = ["arceus", "necrozma", "terapagos"];
+
+    // extras (gen7 OK, déjà FR)
+    const extras = [
+      ...CONFIG.bareme.map(p => p.name),
+      ...CONFIG.bannedNames,
+    ];
+
+    const existing = new Set(dexFR.map(n => normalize(n)));
+    const allNames = [...dexFR];
+    for (const name of extras) {
+      const k = normalize(name);
+      if (!existing.has(k)) {
+        existing.add(k);
+        allNames.push(name);
+      }
+    }
+
+    POKEMONS = allNames.map((name) => {
+      const k = normalize(name);
+      const en = CONFIG.showdownOverrides[k] || frToEn[k] || name;
+
+      const ken = normalize(canonicalizeEnglishName(en));
+      const isPrefixBanned =
+        bannedPrefixes.some(pref => ken.startsWith(pref)) ||
+        bannedPrefixes.some(pref => k.startsWith(pref));
+
+      const banned = bannedSet.has(k) || bannedSet.has(ken) || isPrefixBanned;
+      const points = banned ? 0 : (pointsByName[k] ?? pointsByName[ken] ?? 0);
+
+      return { name, en, points, banned };
+    });
+
+    team = [];
+    searchEl.value = "";
+    updateAll();
+    mountImportUI();
+    updateGenButtonLabel();
+    return;
+  }
+
+  // --- GEN9: liste EN "comme Showdown" + affichage FR si on sait traduire ---
+  const [dexEnRes, frEnRes, frEnExtraRes] = await Promise.all([
+    fetch(CONFIG.dexEnPath),
+    fetch(CONFIG.mapFrEnPath),
+    fetch(CONFIG.mapFrEnPathExtra),
   ]);
 
-  const dexFR = await dexFrRes.json(); // ["Bulbizarre", ...] (807)
-  const pairs = await frEnRes.json();  // [{fr,en}, ...]
+  const dexEN = await dexEnRes.json();
+  const pairs9 = await frEnRes.json();
+  const pairsOld = await frEnExtraRes.json();
 
+    // merge mappings
+  const pairs = [...pairsOld, ...pairs9];
   frToEn = Object.fromEntries(pairs.map(p => [normalize(p.fr), p.en]));
   enToFr = Object.fromEntries(pairs.map(p => [normalize(p.en), p.fr]));
 
-  const pointsByName = Object.fromEntries(BAREME.map(p => [normalize(p.name), p.points]));
-
-  // extras : formes + bannis (pour qu'ils existent dans la liste)
-  const extras = [
-    ...BAREME.map(p => p.name),
-    ...BANNED_NAMES,
-    "Deoxys-Vitesse",
-    "Deoxys-Attaque",
-    "Deoxys-Défense",
-    "Démétéros Avatar",
-    "Démétéros-T",
-    "Sachanobi",
-    "Méga-Ectoplasma",
-    "Méga-Braségali",
-    "Méga-Drattak",
-    "Shaymin-Céleste",
-    "Méga-Tortank",
-  ];
-
-  const existing = new Set(dexFR.map(n => normalize(n)));
-  const allNames = [...dexFR];
-
-  for (const name of extras) {
-    const k = normalize(name);
-    if (!existing.has(k)) {
-      existing.add(k);
-      allNames.push(name);
-    }
+  const pointsByName = {};
+  for (const it of CONFIG.bareme) {
+    const nm = canonicalizeEnglishName(it.name);
+    addBothKeysToMap(pointsByName, nm, it.points, { frToEnLocal: frToEn, enToFrLocal: enToFr });
   }
 
-  POKEMONS = allNames.map((name) => {
-    const k = normalize(name);
-    const banned = BANNED.has(k);
-    const points = banned ? 0 : (pointsByName[k] ?? 0);
-    const en = SHOWDOWN_OVERRIDES[k] || frToEn[k] || name;
-    return { name, en, points, banned };
+  const bannedSet = new Set();
+  const addBan = (nm) => {
+    const canon = canonicalizeEnglishName(nm);
+    bannedSet.add(normalize(canon));
+    bannedSet.add(normalize(nm));
+    const ken = normalize(canon);
+    if (enToFr[ken]) bannedSet.add(normalize(enToFr[ken]));
+    const kfr = normalize(nm);
+    if (frToEn[kfr]) bannedSet.add(normalize(frToEn[kfr]));
+  };
+  for (const nm of CONFIG.bannedNames) addBan(nm);
+
+  const bannedPrefixes = ["arceus", "necrozma", "terapagos"];
+
+  // ✅ on construit la liste depuis EN (pas de doublons FR/EN possibles)
+  // ✅ on ajoute quand même les extras au cas où (bans/barème hors dex EN)
+  const extrasEN = [
+    ...CONFIG.bareme.map(p => canonicalizeEnglishName(p.name)),
+    ...CONFIG.bannedNames.map(n => canonicalizeEnglishName(n)),
+  ];
+
+  const allEN = (() => {
+    const seen = new Set();
+    const out = [];
+    const push = (x) => {
+      const k = normalize(x);
+      if (!k || seen.has(k)) return;
+      seen.add(k);
+      out.push(x);
+    };
+    dexEN.forEach(push);
+    extrasEN.forEach(push);
+    return out;
+  })();
+
+  POKEMONS = allEN.map((enRaw) => {
+    const enCanon = canonicalizeEnglishName(enRaw);
+    const ken = normalize(enCanon);
+
+    const display = toFrenchNameFromEnglish(enCanon);
+    const kdisplay = normalize(display);
+
+    const isPrefixBanned =
+      bannedPrefixes.some(pref => ken.startsWith(pref)) ||
+      bannedPrefixes.some(pref => kdisplay.startsWith(pref));
+
+    const banned = bannedSet.has(ken) || bannedSet.has(kdisplay) || isPrefixBanned;
+    const points = banned ? 0 : (pointsByName[ken] ?? pointsByName[kdisplay] ?? 0);
+
+    return { name: display, en: enCanon, points, banned };
   });
 
-  mountImportUI(); // crée le panneau d'import dans la colonne de droite
+  team = [];
+  searchEl.value = "";
   updateAll();
+  mountImportUI();
+  updateGenButtonLabel();
+  const test = POKEMONS.find(p => normalize(p.en) === "serperior");
+console.log("TEST Serperior->", test);
 }
 
 // ----------------------------
@@ -401,18 +719,13 @@ const inTeam = (name) => team.some(p => normalize(p.name) === normalize(name));
 // ----------------------------
 function filteredList() {
   const q = normalize(searchEl.value.trim());
-
   let list = q
     ? POKEMONS.filter(p => normalize(p.name).includes(q) || normalize(p.en).includes(q))
     : [...POKEMONS];
 
-  if (sortMode === "AZ") {
-    list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
-  } else if (sortMode === "DESC") {
-    list.sort((a, b) => ((b.points || 0) - (a.points || 0)) || a.name.localeCompare(b.name, "fr"));
-  } else {
-    list.sort((a, b) => ((a.points || 0) - (b.points || 0)) || a.name.localeCompare(b.name, "fr"));
-  }
+  if (sortMode === "AZ") list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  else if (sortMode === "DESC") list.sort((a, b) => ((b.points || 0) - (a.points || 0)) || a.name.localeCompare(b.name, "fr"));
+  else list.sort((a, b) => ((a.points || 0) - (b.points || 0)) || a.name.localeCompare(b.name, "fr"));
 
   return list;
 }
@@ -434,20 +747,20 @@ function badgeClass(points, banned) {
 // ----------------------------
 function renderResults(list) {
   resultsEl.innerHTML = "";
-  resultCountEl.textContent = String(list.length);
-  statusEl.textContent = team.length >= 6 ? "Équipe pleine (6/6)" : "";
+  if (resultCountEl) resultCountEl.textContent = String(list.length);
+  if (statusEl) statusEl.textContent = team.length >= 6 ? "Équipe pleine (6/6)" : "";
 
   if (list.length === 0) {
     resultsEl.innerHTML = `
       <div class="rounded-xl bg-slate-950/50 p-4 text-sm text-slate-400 ring-1 ring-slate-800">
         Aucun résultat.
-      </div>
-    `;
+      </div>`;
     return;
   }
 
   for (const p of list) {
     const disabled = p.banned || inTeam(p.name) || team.length >= 6;
+
     const row = document.createElement("button");
     row.type = "button";
     row.disabled = disabled;
@@ -471,8 +784,7 @@ function renderResults(list) {
         <div class="shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${badgeClass(p.points, p.banned)}">
           ${p.banned ? "BANNI" : `${p.points} pts`}
         </div>
-      </div>
-    `;
+      </div>`;
 
     row.addEventListener("click", () => {
       if (p.banned) return;
@@ -496,15 +808,13 @@ function renderTeam() {
     teamEl.innerHTML = `
       <div class="sm:col-span-2 rounded-xl bg-slate-950/50 p-4 text-sm text-slate-400 ring-1 ring-slate-800">
         Ajoute des Pokémon depuis la liste à gauche.
-      </div>
-    `;
+      </div>`;
     return;
   }
 
   for (const p of team) {
     const card = document.createElement("div");
     card.className = "rounded-xl bg-slate-950/40 p-3 ring-1 ring-slate-800";
-
     card.innerHTML = `
       <div class="flex items-start justify-between gap-3">
         <div>
@@ -514,8 +824,7 @@ function renderTeam() {
         <button class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700">
           Supprimer
         </button>
-      </div>
-    `;
+      </div>`;
 
     card.querySelector("button").addEventListener("click", () => {
       team = team.filter(x => normalize(x.name) !== normalize(p.name));
@@ -530,12 +839,10 @@ function renderTeam() {
 // HEADER + UPDATE
 // ----------------------------
 function renderHeader() {
-  totalEl.textContent = String(totalPoints());
-  teamCountEl.textContent = `${team.length} / 6`;
+  if (totalEl) totalEl.textContent = String(totalPoints());
+  if (teamCountEl) teamCountEl.textContent = `${team.length} / 6`;
 }
-function updateResults() {
-  renderResults(filteredList());
-}
+function updateResults() { renderResults(filteredList()); }
 function updateAll() {
   renderHeader();
   renderTeam();
@@ -543,17 +850,11 @@ function updateAll() {
 }
 
 // ----------------------------
-// POKÉPASTE EXPORT (EN Showdown minimal)
+// EXPORT PokéPaste
 // ----------------------------
 function pokepasteText() {
-  return (
-    team
-      .map(p => (p.en || p.name).trim())
-      .filter(Boolean)
-      .join("\n\n") + "\n"
-  );
+  return team.map(p => (p.en || p.name).trim()).filter(Boolean).join("\n\n") + "\n";
 }
-
 function openPokePaste() {
   const text = pokepasteText().trim();
   if (!text) return;
@@ -571,7 +872,7 @@ function openPokePaste() {
   const title = document.createElement("input");
   title.type = "hidden";
   title.name = "title";
-  title.value = "RPPLF";
+  title.value = `RPPLF Gen${currentGen}`;
 
   form.appendChild(paste);
   form.appendChild(title);
@@ -581,15 +882,8 @@ function openPokePaste() {
 }
 
 // ----------------------------
-// IMPORT (texte Showdown/PokéPaste)
+// IMPORT (texte)
 // ----------------------------
-
-// 1) Extract species from a showdown export block.
-// Handles:
-// - "Nidoking (M) @ Life Orb"
-// - "Nick (Skarmory) @ Leftovers"
-// - "Lucario-Mega @ Lucarionite"
-// - removes "@ item", "(M)/(F)", etc.
 function parseSpeciesFromPaste(text) {
   const blocks = String(text || "").replace(/\r/g, "").split(/\n{2,}/);
   const species = [];
@@ -597,92 +891,63 @@ function parseSpeciesFromPaste(text) {
   for (const block of blocks) {
     const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
     if (!lines.length) continue;
-
-    // ignore headers like "=== [gen7ou] ..."
     if (lines[0].startsWith("===")) continue;
 
     let first = lines[0];
 
-    // If "Nick (Species) @ Item" -> keep inside parentheses
     const paren = first.match(/\(([^)]+)\)/);
     if (paren) first = paren[1];
 
-    // Remove item part
     first = first.split("@")[0].trim();
-
-    // Remove trailing gender markers
     first = first.replace(/\s+\((m|f)\)\s*$/i, "").trim();
 
-    // Sometimes there is still "Species: X"
     const colon = first.match(/(?:species|pokemon|pokémon)\s*[:\-]\s*(.+)/i);
     if (colon) first = colon[1].trim();
 
     if (first) species.push(first);
   }
-
   return species;
-}
-
-function toFrenchNameFromEnglish(enName) {
-  const k = normalize(enName);
-  if (EN_TO_FR_OVERRIDES[k]) return EN_TO_FR_OVERRIDES[k];
-  if (enToFr[k]) return enToFr[k];
-  return enName; // fallback
 }
 
 function importFromPasteText(pasteText) {
   const enSpecies = parseSpeciesFromPaste(pasteText);
 
   const picked = [];
-  const byNameFR = new Map(POKEMONS.map(p => [normalize(p.name), p]));
+  const byFR = new Map(POKEMONS.map(p => [normalize(p.name), p]));
+  const byEN = new Map(POKEMONS.map(p => [normalize(p.en), p]));
 
-  for (const en of enSpecies) {
-    // Try EN -> FR mapping
-    const fr = toFrenchNameFromEnglish(en);
-    const foundFR = byNameFR.get(normalize(fr));
-    if (foundFR) {
-      picked.push(foundFR);
-      continue;
-    }
+  for (const rawEn of enSpecies) {
+    const canonEn = canonicalizeEnglishName(rawEn);
 
-    // Fallback: match directly by english name stored in POKEMONS
-    const foundEN = POKEMONS.find(p => normalize(p.en) === normalize(en));
-    if (foundEN) picked.push(foundEN);
+    const hitEN = byEN.get(normalize(canonEn));
+    if (hitEN) { picked.push(hitEN); continue; }
+
+    const fr = toFrenchNameFromEnglish(canonEn);
+    const hitFR = byFR.get(normalize(fr));
+    if (hitFR) { picked.push(hitFR); continue; }
+
+    const hitEN2 = byEN.get(normalize(rawEn));
+    if (hitEN2) picked.push(hitEN2);
   }
 
   team = clamp6(picked);
   updateAll();
 
-  // return small stats for UI feedback
   const missing = Math.max(0, enSpecies.length - picked.length);
   return { imported: team.length, missing };
 }
 
 // ----------------------------
-// IMPORT UI (in right column)
+// IMPORT UI (panneau)
 // ----------------------------
 let importPanelEl = null;
 let importTextareaEl = null;
 let importMsgEl = null;
 
 function mountImportUI() {
-  // Right section header row = the div that contains the buttons (PokePaste + Vider)
-  const rightButtonsRow = pokepasteBtn?.parentElement;
-  if (!rightButtonsRow) return;
+  const importBtn = document.getElementById("importPasteBtn");
+  if (!importBtn) return;
 
-  // Create Importer button if not present
-  let importBtn = document.getElementById("importPasteBtn");
-  if (!importBtn) {
-    importBtn = document.createElement("button");
-    importBtn.id = "importPasteBtn";
-    importBtn.className =
-      "shrink-0 rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700";
-    importBtn.textContent = "Importer";
-    // Put between PokePaste and Vider
-    rightButtonsRow.insertBefore(importBtn, clearTeamBtn);
-  }
-
-  // Create panel (hidden by default)
   if (!importPanelEl) {
     importPanelEl = document.createElement("div");
     importPanelEl.id = "importPanel";
@@ -691,14 +956,13 @@ function mountImportUI() {
     importPanelEl.innerHTML = `
       <div class="text-sm text-slate-200 font-medium">Importer une team (texte Showdown)</div>
       <div class="mt-1 text-xs text-slate-400">
-        L’import par lien est bloqué.
         Ouvre le PokéPaste → <span class="font-semibold">Import/Export</span> → copie le texte → colle ici.
       </div>
 
       <textarea
         id="importTextarea"
         class="mt-3 w-full min-h-[180px] rounded-xl bg-slate-950/60 px-3 py-3 text-sm text-slate-100 ring-1 ring-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        placeholder="Colle ici le texte Showdown/PokéPaste (6 Pokémon)..."
+        placeholder="Colle ici le texte Showdown/PokéPaste..."
       ></textarea>
 
       <div class="mt-3 flex items-center gap-2">
@@ -718,41 +982,48 @@ function mountImportUI() {
       </div>
     `;
 
-    // Insert panel above the team grid
-    teamEl.parentElement.insertBefore(importPanelEl, teamEl);
+    // insertion: juste avant la grid de team, ou au-dessus de teamEl
+    if (teamEl && teamEl.parentElement) {
+      teamEl.parentElement.insertBefore(importPanelEl, teamEl);
+    } else {
+      document.body.appendChild(importPanelEl);
+    }
 
     importTextareaEl = importPanelEl.querySelector("#importTextarea");
     importMsgEl = importPanelEl.querySelector("#importMsg");
 
-    const applyBtn = importPanelEl.querySelector("#importApplyBtn");
-    const closeBtn = importPanelEl.querySelector("#importCloseBtn");
-
-    applyBtn.addEventListener("click", () => {
-      const txt = importTextareaEl.value.trim();
-      if (!txt) {
-        importMsgEl.textContent = "Colle un texte d’abord.";
-        return;
-      }
+    importPanelEl.querySelector("#importApplyBtn").addEventListener("click", () => {
+      const txt = (importTextareaEl?.value || "").trim();
+      if (!txt) { if (importMsgEl) importMsgEl.textContent = "Colle un texte d’abord."; return; }
       const { imported, missing } = importFromPasteText(txt);
-      importMsgEl.textContent =
-        missing > 0
+      if (importMsgEl) {
+        importMsgEl.textContent = missing > 0
           ? `✅ Importé: ${imported}. ⚠️ Non reconnus: ${missing}`
           : `✅ Importé: ${imported}.`;
+      }
     });
 
-    closeBtn.addEventListener("click", () => {
+    importPanelEl.querySelector("#importCloseBtn").addEventListener("click", () => {
       importPanelEl.classList.add("hidden");
     });
   }
 
-  // Toggle panel on button click
-  importBtn.addEventListener("click", () => {
+  // toggle (évite d'empiler des listeners)
+  importBtn.onclick = () => {
     importPanelEl.classList.toggle("hidden");
     if (!importPanelEl.classList.contains("hidden")) {
-      importMsgEl.textContent = "";
-      importTextareaEl.focus();
+      if (importMsgEl) importMsgEl.textContent = "";
+      importTextareaEl?.focus();
     }
-  });
+  };
+}
+
+// ----------------------------
+// GEN SWITCH UI
+// ----------------------------
+function updateGenButtonLabel() {
+  if (!genBtn) return;
+  genBtn.textContent = currentGen === 7 ? "Gen: 7" : "Gen: 9";
 }
 
 // ----------------------------
@@ -773,16 +1044,23 @@ clearTeamBtn.addEventListener("click", () => {
 
 sortBtn?.addEventListener("click", () => {
   sortMode = sortMode === "AZ" ? "DESC" : sortMode === "DESC" ? "ASC" : "AZ";
-
-  sortBtn.textContent =
-    sortMode === "AZ" ? "Tri: A→Z" : sortMode === "DESC" ? "Tri: Points ↓" : "Tri: Points ↑";
-
+  sortBtn.textContent = sortMode === "AZ" ? "Tri: A→Z" : sortMode === "DESC" ? "Tri: Points ↓" : "Tri: Points ↑";
   updateResults();
 });
 
 pokepasteBtn?.addEventListener("click", openPokePaste);
 
+genBtn?.addEventListener("click", async () => {
+  currentGen = currentGen === 7 ? 9 : 7;
+  updateGenButtonLabel();
+  await loadDexForGen(currentGen);
+});
+
 // ----------------------------
 // START
 // ----------------------------
-initDex();
+(async () => {
+  updateGenButtonLabel();
+  await loadDexForGen(7);
+  mountImportUI();
+})();
