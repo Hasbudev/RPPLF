@@ -408,6 +408,7 @@ const BAREME_GEN9 = [
   { name: "Iron Crown", points: 3 },
   { name: "Alomomola", points: 3 },
   { name: "Iron Moth", points: 3 },
+  { name: "Iron Boulder", points: 3 },
 
   { name: "Ninetales", points: 2 },
   { name: "Chansey", points: 2 },
