@@ -12,6 +12,8 @@
 // ----------------------------
 // HELPERS
 // ----------------------------
+const MISSING_FR_TAG = "(@moyerf)";
+
 const normalize = (s) =>
   String(s || "")
     .toLowerCase()
@@ -307,49 +309,50 @@ const SHOWDOWN_OVERRIDES_GEN7_RAW = {
 };
 
 const EN_TO_FR_OVERRIDES_GEN7 = {
-  "kangaskhan-mega": "Méga-Kangourex",
-  "lucario-mega": "Méga-Lucario",
-  "sableye-mega": "Méga-Ténéfix",
-  "metagross-mega": "Méga-Métalosse",
-  "mawile-mega": "Méga-Mysdibule",
-  "diancie-mega": "Méga-Diancie",
-  "alakazam-mega": "Méga-Alakazam",
-  "gyarados-mega": "Méga-Léviator",
-  "swampert-mega": "Méga-Laggron",
-  "charizard-mega-x": "Méga Dracaufeu X",
-  "charizard-mega-y": "Méga-Dracaufeu Y",
-  "lopunny-mega": "Méga-Lockpin",
-  "pinsir-mega": "Méga-Scarabrute",
-  "scizor-mega": "Méga-Cizayox",
-  "medicham-mega": "Méga-Charmina",
-  "latios-mega": "Méga-Latios",
-  "tyranitar-mega": "Méga-Tyranocif",
-  "venusaur-mega": "Méga-Florizarre",
-  "latias-mega": "Méga-Latias",
-  "gallade-mega": "Méga-Gallame",
-  "manectric-mega": "Méga-Élecsprint",
-  "slowbro-mega": "Méga Flagadoss",
-  "heracross-mega": "Méga-Scarinho",
-  "garchomp-mega": "Méga-Carchacrok",
-  "gardevoir-mega": "Méga-Gardevoir",
-  "aerodactyl-mega": "Méga-Ptéra",
-  "altaria-mega": "Méga-Altaria",
-  "greninja-ash": "Sachanobi",
+  // Deoxys
   "deoxys-speed": "Deoxys-Vitesse",
   "deoxys-attack": "Deoxys-Attaque",
   "deoxys-defense": "Deoxys-Défense",
+
+  // Landorus / formes
   "landorus": "Démétéros Avatar",
   "landorus-therian": "Démétéros-T",
+
+  // Hoopa
   "hoopa-unbound": "Hoopa Déchaîné",
+
+  // Rotom
   "rotom-wash": "Motisma-Laveuse",
+
+  // Alola
   "marowak-alola": "Ossatueur-Alola",
   "ninetales-alola": "Feunard-Alola",
+
+  // Kyurem
   "kyurem-black": "Kyurem Noir",
   "kyurem-white": "Kyurem-Blanc",
+
+  // Shaymin
   "shaymin-sky": "Shaymin-Céleste",
+
+  // Giratina
   "giratina-origin": "Giratina-Originel",
+
+  // Zygarde
   "zygarde-complete": "Zygarde-Complète",
+  "zygarde-50": "Zygarde 50%",         // au cas où ton dex renvoie 50 sans %
+  "zygarde-50%": "Zygarde 50%",
+
+  // Nihilego
   "nihilego": "Zeroid",
+
+  // Keldeo
+  "keldeo-resolute": "Keldeo-Décidé",
+
+  // Génies (si jamais ton dex/mapping manque)
+  "tornadus-therian": "Boréas-Totémique",
+  "thundurus-therian": "Fulguris-Totémique",
+  "landorus-therian": "Démétéros-Totémique",
 };
 
 // ----------------------------
@@ -483,14 +486,37 @@ const BANNED_NAMES_GEN9 = [
 
 const SHOWDOWN_OVERRIDES_GEN9_RAW = {};
 const EN_TO_FR_OVERRIDES_GEN9 = {
+  // Génies
+  "landorus": "Démétéros",
+  "landorus-therian": "Démétéros-T",
+  "tornadus": "Boréas",
+  "tornadus-therian": "Boréas-T",
+  "thundurus": "Fulguris",
+  "thundurus-therian": "Fulguris-T",
+  "enamorus": "Amovénus",
+  "enamorus-therian": "Amovénus-T",
+
+  // Feunard
+  "ninetales": "Feunard",
+  "ninetales-alola": "Feunard-Alola",
+
+  // Keldeo
+  "keldeo-resolute": "Keldeo-Décidé",
+
+  // Ogerpon
   "ogerpon-wellspring": "Ogerpon-Wellspring",
   "ogerpon-hearthflame": "Ogerpon-Hearthflame",
   "ogerpon-cornerstone": "Ogerpon-Cornerstone",
+
+  // Ursaluna / Urshifu / Hisui / Galar
   "ursaluna-bloodmoon": "Ursaluna-Bloodmoon",
   "urshifu-rapid-strike": "Urshifu-Rapid-Strike",
   "samurott-hisui": "Samurott-Hisui",
   "lilligant-hisui": "Lilligant-Hisui",
   "slowking-galar": "Slowking-Galar",
+  "sneasler": "Farfurex", // optionnel, si tu veux forcer (sinon mapping)
+
+  // Deoxys / Calyrex / Terapagos (souvent utiles)
   "deoxys-speed": "Deoxys-Speed",
   "deoxys-attack": "Deoxys-Attack",
   "deoxys-defense": "Deoxys-Defense",
@@ -498,6 +524,10 @@ const EN_TO_FR_OVERRIDES_GEN9 = {
   "calyrex-ice": "Calyrex-Ice",
   "terapagos-stellar": "Terapagos-Stellar",
   "terapagos-terastal": "Terapagos-Terastal",
+
+  // Tes alias déjà demandés
+  "toxtricity": "Salarsen",
+  "alcremie": "Charmilly",
 };
 
 // ----------------------------
@@ -517,7 +547,7 @@ function getGenConfig(gen) {
       bareme: BAREME_GEN9,
       bannedNames: BANNED_NAMES_GEN9,
       showdownOverrides: buildOverrides(SHOWDOWN_OVERRIDES_GEN9_RAW),
-      enToFrOverrides: EN_TO_FR_OVERRIDES_GEN9,
+      enToFrOverrides: buildOverrides(EN_TO_FR_OVERRIDES_GEN9),
       title: "Gen: 9",
     };
   }
@@ -529,7 +559,7 @@ function getGenConfig(gen) {
     bareme: BAREME_GEN7,
     bannedNames: BANNED_NAMES_GEN7,
     showdownOverrides: buildOverrides(SHOWDOWN_OVERRIDES_GEN7_RAW),
-    enToFrOverrides: EN_TO_FR_OVERRIDES_GEN7,
+    enToFrOverrides: buildOverrides(EN_TO_FR_OVERRIDES_GEN7),
     title: "Gen: 7",
   };
 }
@@ -537,7 +567,7 @@ function getGenConfig(gen) {
 // ----------------------------
 // STATE
 // ----------------------------
-let currentGen = 7;
+let currentGen = 9;
 let CONFIG = getGenConfig(currentGen);
 
 let POKEMONS = []; // { name(display), en, points, banned }
@@ -573,9 +603,10 @@ function toFrenchNameFromEnglish(enName) {
   if (CONFIG.enToFrOverrides && CONFIG.enToFrOverrides[k]) return CONFIG.enToFrOverrides[k];
   if (enToFr && enToFr[k]) return enToFr[k];
 
-  // fallback: on garde EN si on n'a pas la trad
-  return canon;
+  // ✅ pas de trad -> EN + tag
+  return `${canon} ${MISSING_FR_TAG}`;
 }
+
 
 // ----------------------------
 // DEX LOADER
@@ -737,21 +768,32 @@ async function loadDexForGen(gen) {
 })();
 
   POKEMONS = allEN.map((enRaw) => {
-    const enCanon = canonicalizeEnglishName(enRaw);
-    const ken = normalize(enCanon);
+  const enCanon = canonicalizeEnglishName(enRaw);
+  const ken = normalize(enCanon);
 
-    const display = toFrenchNameFromEnglish(enCanon);
-    const kdisplay = normalize(display);
+  // display FR si dispo sinon EN + tag
+  const displayFinal = toFrenchNameFromEnglish(enCanon);
 
-    const isPrefixBanned =
-      bannedPrefixes.some(pref => ken.startsWith(pref)) ||
-      bannedPrefixes.some(pref => kdisplay.startsWith(pref));
+  // ✅ clé "clean" pour points/bans :
+  // - si displayFinal est une vraie trad FR -> on l’utilise
+  // - sinon on utilise l’EN canon (sans tag)
+  const isTagged = displayFinal.endsWith(MISSING_FR_TAG);
+  const kClean = isTagged ? ken : normalize(displayFinal);
 
-    const banned = bannedSet.has(ken) || bannedSet.has(kdisplay) || isPrefixBanned;
-    const points = banned ? 0 : (pointsByName[ken] ?? pointsByName[kdisplay] ?? 0);
+  const isPrefixBanned =
+    bannedPrefixes.some(pref => ken.startsWith(pref)) ||
+    bannedPrefixes.some(pref => kClean.startsWith(pref));
 
-    return { name: display, en: enCanon, points, banned };
-  });
+  const banned =
+    bannedSet.has(ken) ||
+    bannedSet.has(kClean) ||
+    isPrefixBanned;
+
+  const points = banned ? 0 : (pointsByName[ken] ?? pointsByName[kClean] ?? 0);
+
+  return { name: displayFinal, en: enCanon, points, banned };
+});
+
 
   team = [];
   searchEl.value = "";
@@ -1115,6 +1157,6 @@ genBtn?.addEventListener("click", async () => {
 // ----------------------------
 (async () => {
   updateGenButtonLabel();
-  await loadDexForGen(7);
+  await loadDexForGen(currentGen);
   mountImportUI();
 })();
