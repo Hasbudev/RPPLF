@@ -126,17 +126,17 @@ function canonicalizeEnglishName(raw) {
 // ----------------------------
 const BAREME_GEN7 = [
   { name: "Méga-Kangourex", points: 10 },
-  { name: "Deoxys-Vitesse", points: 10 },
   { name: "Genesect", points: 10 },
   { name: "Méga-Lucario", points: 10 },
   { name: "Démétéros Avatar", points: 10 },
   { name: "Zygarde 50%", points: 10 },
+   { name: "Mandrillon", points: 10 },
 
   { name: "Braségali", points: 8 },
   { name: "Méga-Ténéfix", points: 8 },
   { name: "Méga-Métalosse", points: 8 },
-  { name: "Mandrillon", points: 8 },
-
+  { name: "Deoxys-Vitesse", points: 8 },
+ 
   { name: "Pyrax", points: 6 },
   { name: "Méga-Mysdibule", points: 6 },
   { name: "Méga-Diancie", points: 6 },
