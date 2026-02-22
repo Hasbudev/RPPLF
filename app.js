@@ -362,8 +362,7 @@ const BAREME_GEN9 = [
   { name: "Shaymin-Sky", points: 10 },
   { name: "Urshifu Single Strike", points: 10 },
   { name: "Palafin", points: 10 },
-  { name: "Chien-Pao", points: 10 },
-  { name: "Iron Bundle", points: 10 },
+  { name: "Iron Bundle", points: 8 },
 
   { name: "Zamazenta", points: 8 },
   { name: "Landorus", points: 8 },
@@ -376,6 +375,8 @@ const BAREME_GEN9 = [
   { name: "Ursaluna Bloodmoon", points: 6 },
   { name: "Gouging Fire", points: 6 },
   { name: "Deoxys-Speed", points: 6 },
+  { name: "Terapagos", points: 6 },
+  { name: "Terapagos-Terastal", points: 6 },
 
   { name: "Kyurem", points: 5 },
   { name: "Sneasler Hisui", points: 5 },
@@ -388,7 +389,7 @@ const BAREME_GEN9 = [
   { name: "Volcarona", points: 4 },
   { name: "Hawlucha", points: 4 },
   { name: "Dragapult", points: 4 },
-  { name: "Ursaluna", points: 4 },
+  { name: "Ursaluna", points: 3 },
   { name: "Enamorus", points: 4 },
   { name: "Espathra", points: 4 },
   { name: "Annihilape", points: 4 },
@@ -400,7 +401,7 @@ const BAREME_GEN9 = [
 
   { name: "Torkoal", points: 3 },
   { name: "Pelipper", points: 3 },
-  { name: "Gliscor", points: 3 },
+  { name: "Gliscor", points: 4 },
   { name: "Heatran", points: 3 },
   { name: "Landorus-Therian", points: 3 },
   { name: "Greninja", points: 3 },
@@ -456,7 +457,7 @@ const BAREME_GEN9 = [
   { name: "Quaquaval", points: 1 },
   { name: "Clodsire", points: 1 },
   { name: "Glimmora", points: 1 },
-  { name: "Iron Hands", points: 1 },
+  { name: "Basculegion-F", points: 1 },
   { name: "Tornadus-Therian", points: 1 },
 ];
 
@@ -480,8 +481,7 @@ const BANNED_NAMES_GEN9 = [
   "Flutter Mane",
   "Chi-Yu",
   "Koraidon","Miraidon",
-  "Terapagos",
-  "Gothitelle",
+  "Chien-Pao",
 ];
 
 const SHOWDOWN_OVERRIDES_GEN9_RAW = {};
@@ -523,7 +523,7 @@ const EN_TO_FR_OVERRIDES_GEN9 = {
   "calyrex-shadow": "Calyrex-Shadow",
   "calyrex-ice": "Calyrex-Ice",
   "terapagos-stellar": "Terapagos-Stellar",
-  "terapagos-terastal": "Terapagos-Terastal",
+  
 
   // Tes alias déjà demandés
   "toxtricity": "Salarsen",
@@ -662,7 +662,7 @@ async function loadDexForGen(gen) {
     };
     for (const nm of CONFIG.bannedNames) addBan(nm);
 
-    const bannedPrefixes = ["arceus", "necrozma", "terapagos"];
+    const bannedPrefixes = ["arceus", "necrozma"];
 
     // extras (gen7 OK, déjà FR)
     const extras = [
@@ -737,7 +737,7 @@ async function loadDexForGen(gen) {
   };
   for (const nm of CONFIG.bannedNames) addBan(nm);
 
-  const bannedPrefixes = ["arceus", "necrozma", "terapagos"];
+  const bannedPrefixes = ["arceus", "necrozma"];
 
   // ✅ on construit la liste depuis EN (pas de doublons FR/EN possibles)
   // ✅ on ajoute quand même les extras au cas où (bans/barème hors dex EN)
