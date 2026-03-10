@@ -1,5 +1,12 @@
 // ======================================================
 // Team Builder RPPLF — app.js (Gen7/Gen9 switch)
+// Gen7: ton dex FR + mapping FR<->EN
+// Gen9: dex "comme Showdown teambuilder" (EN complet) + affichage FR si dispo
+// - Recherche FR + EN
+// - Tri A→Z / Points ↓ / Points ↑
+// - BANNI (rouge, non ajoutable)
+// - Export PokéPaste (EN Showdown)
+// - Import via texte Showdown/PokéPaste
 // ======================================================
 
 // ----------------------------
@@ -349,7 +356,7 @@ const EN_TO_FR_OVERRIDES_GEN7 = {
 };
 
 // ----------------------------
-// GEN 9 DATA (barème + bans)
+// GEN 9 DATA (barème + bans donnés par toi)
 // ----------------------------
 const BAREME_GEN9 = [
   { name: "Shaymin-Sky", points: 10 },
@@ -524,215 +531,6 @@ const EN_TO_FR_OVERRIDES_GEN9 = {
 };
 
 // ----------------------------
-// GEN 8 DATA
-// ----------------------------
-const BAREME_GEN8 = [
-  { name: "Greninja",              points: 10 },
-  { name: "Kartana",               points: 10 },
-  { name: "Spectrier",             points: 10 },
-  { name: "Darmanitan-Galar",      points: 10 },
-  { name: "Urshifu Single Strike", points: 10 },
-
-  { name: "Landorus",              points: 8 },
-  { name: "Kyurem",                points: 8 },
-
-  { name: "Volcarona",             points: 6 },
-  { name: "Urshifu Rapid Strike",  points: 6 },
-  { name: "Klefki",                points: 6 },
-  { name: "Hawlucha",              points: 6 },
-
-  { name: "Quagsire",              points: 5 },
-  { name: "Blaziken",              points: 5 },
-  { name: "Garchomp",              points: 5 },
-  { name: "Tapu Lele",             points: 5 },
-  { name: "Melmetal",              points: 5 },
-  { name: "Cinderace",             points: 5 },
-
-  { name: "Salamence",             points: 4 },
-  { name: "Dragonite",             points: 4 },
-  { name: "Landorus-Therian",      points: 4 },
-  { name: "Aegislash",             points: 4 },
-  { name: "Glastrier",             points: 4 },
-  { name: "Tapu Koko",             points: 4 },
-  { name: "Zeraora",               points: 4 },
-  { name: "Bamboiselle",           points: 4 },
-  { name: "Galvagon",              points: 4 },
-  { name: "Dragapult",             points: 4 },
-
-  { name: "Slowbro",               points: 3 },
-  { name: "Clefable",              points: 3 },
-  { name: "Gyarados",              points: 3 },
-  { name: "Chansey",               points: 3 },
-  { name: "Blissey",               points: 3 },
-  { name: "Tyranitar",             points: 3 },
-  { name: "Weavile",               points: 3 },
-  { name: "Torkoal",               points: 3 },
-  { name: "Heatran",               points: 3 },
-  { name: "Durant",                points: 3 },
-  { name: "Tornadus-Therian",      points: 3 },
-  { name: "Silvally",              points: 3 },
-  { name: "Tapu Fini",             points: 3 },
-  { name: "Nihilego",              points: 3 },
-  { name: "Rillaboom",             points: 3 },
-  { name: "Obstagoon",             points: 3 },
-  { name: "Galvagla",              points: 3 },
-
-  { name: "Venusaur",              points: 2 },
-  { name: "Ditto",                 points: 2 },
-  { name: "Alakazam",              points: 2 },
-  { name: "Moltres",               points: 2 },
-  { name: "Zapdos",                points: 2 },
-  { name: "Scizor",                points: 2 },
-  { name: "Latios",                points: 2 },
-  { name: "Magnezone",             points: 2 },
-  { name: "Victini",               points: 2 },
-  { name: "Excadrill",             points: 2 },
-  { name: "Toxapex",               points: 2 },
-  { name: "Keldeo",                points: 2 },
-  { name: "Ninetales-Alola",       points: 2 },
-  { name: "Tapu Bulu",             points: 2 },
-  { name: "Corviknight",           points: 2 },
-  { name: "Hatterene",             points: 2 },
-  { name: "Barraskewda",           points: 2 },
-  { name: "Gaulet",           points: 2 },
-  { name: "Zeroid",             points: 2 },
-  { name: "Ama-Ama",             points: 2 },
-
-  { name: "Dugtrio",               points: 1 },
-  { name: "Nidoking",              points: 1 },
-  { name: "Ninetales",             points: 1 },
-  { name: "Gengar",                points: 1 },
-  { name: "Lapras",                points: 1 },
-  { name: "Mew",                   points: 1 },
-  { name: "Sudowoodo",             points: 1 },
-  { name: "Cloyster",              points: 1 },
-  { name: "Azumarill",             points: 1 },
-  { name: "Skarmory",              points: 1 },
-  { name: "Latias",                points: 1 },
-  { name: "Jirachi",               points: 1 },
-  { name: "Rotom-Wash",            points: 1 },
-  { name: "Rotom-Mow",             points: 1 },
-  { name: "Probopass",             points: 1 },
-  { name: "Hippowdon",             points: 1 },
-  { name: "Cresselia",             points: 1 },
-  { name: "Conkeldurr",            points: 1 },
-  { name: "Scolipede",             points: 1 },
-  { name: "Volcanion",             points: 1 },
-  { name: "Primarina",             points: 1 },
-  { name: "Ribombee",              points: 1 },
-  { name: "Indeedee",              points: 1 },
-];
-
-const BANNED_NAMES_GEN8 = [
-  "Mewtwo", "Wobbuffet", "Lugia", "Ho-Oh", "Groudon", "Kyogre", "Rayquaza",
-  "Palkia", "Dialga", "Giratina", "Giratina-Origin",
-  "Reshiram", "Zekrom", "Kyurem-Black", "Kyurem-White",
-  "Genesect",
-  "Xerneas", "Yveltal", "Zygarde", "Zygarde-Complete",
-  "Solgaleo", "Lunala", "Necrozma-Dusk-Mane",
-  "Magearna", "Pheromosa", "Marshadow",
-  "Dracovish",
-  "Zacian", "Zacian-Crowned",
-  "Zamazenta", "Zamazenta-Crowned",
-  "Eternatus",
-  "Calyrex-Ice", "Calyrex-Shadow",
-  "Gothitelle",
-];
-
-// Aliases pour le bareme (même logique que Gen 9)
-const SHOWDOWN_OVERRIDES_GEN8_RAW = {
-  "Urshifu Single Strike": "Urshifu",
-  "Urshifu Rapid Strike":  "Urshifu-Rapid-Strike",
-};
-
-// Noms FR à afficher pour chaque EN Showdown
-const EN_TO_FR_OVERRIDES_GEN8 = {
-  "greninja":              "Mandrillon",
-  "kartana":               "Katagami",
-  "spectrier":             "Spectreval",
-  "darmanitan-galar":      "Darumacho Galar",
-  "urshifu":               "Shifours Dark",
-  "landorus":              "Démétéros A",
-  "kyurem":                "Kyurem",
-  "volcarona":             "Pyrax",
-  "urshifu-rapid-strike":  "Shifours Eau",
-  "klefki":                "Pierroteknik",
-  "hawlucha":              "Brutalibré",
-  "quagsire":              "Maraiste",
-  "blaziken":              "Braségali",
-  "garchomp":              "Carchacrok",
-  "tapu-lele":             "Tokopiyon",
-  "melmetal":              "Melmetal",
-  "cinderace":             "Pyrobut",
-  "salamence":             "Dracolosse",
-  "dragonite":             "Drattak",
-  "landorus-therian":      "Démétéros-T",
-  "aegislash":             "Exagide",
-  "glastrier":             "Prédastérie",
-  "tapu-koko":             "Tokorico",
-  "zeraora":               "Zeraora",
-  "dragapult":             "Lanssorien",
-  "slowbro":               "Flagadoss",
-  "clefable":              "Mélodelfe",
-  "gyarados":              "Léviator",
-  "chansey":               "Leveinard",
-  "blissey":               "Leuphorie",
-  "tyranitar":             "Tyranocif",
-  "weavile":               "Bekipan",
-  "torkoal":               "Chartor",
-  "heatran":               "Heatran",
-  "durant":                "Noacier",
-  "tornadus-therian":      "Boréas-T",
-  "silvally":              "Ekaïser",
-  "tapu-fini":             "Tokopisco",
-  "nihilego":              "Mouscoto",
-  "rillaboom":             "Gorythmic",
-  "obstagoon":             "Roigada-Galar",
-  "venusaur":              "Florizarre",
-  "ditto":                 "Métamorph",
-  "alakazam":              "Alakazam",
-  "moltres":               "Sulfura",
-  "zapdos":                "Electhor",
-  "scizor":                "Cizayox",
-  "latios":                "Latios",
-  "magnezone":             "Dimoret",
-  "victini":               "Victini",
-  "excadrill":             "Minotaupe",
-  "toxapex":               "Crapustule",
-  "keldeo":                "Keldeo",
-  "keldeo-resolute":       "Keldeo",
-  "ninetales-alola":       "Feunard-Alola",
-  "tapu-bulu":             "Tokotoro",
-  "corviknight":           "Corvaillus",
-  "hatterene":             "Sorcilence",
-  "barraskewda":           "Hastacuda",
-  "dugtrio":               "Triopikeur",
-  "nidoking":              "Nidoking",
-  "ninetales":             "Feunard",
-  "gengar":                "Ectoplasma",
-  "lapras":                "Lokhlass",
-  "mew":                   "Mew",
-  "sudowoodo":             "Tarpaud",
-  "cloyster":              "Caratroc",
-  "azumarill":             "Azumarill",
-  "skarmory":              "Airmure",
-  "latias":                "Latias",
-  "jirachi":               "Jirachi",
-  "rotom-wash":            "Motisma-Lavage",
-  "rotom-mow":             "Motisma-Four",
-  "probopass":             "Bouldeneu",
-  "hippowdon":             "Hippodocus",
-  "cresselia":             "Cresselia",
-  "conkeldurr":            "Bétochef",
-  "scolipede":             "Brutapode",
-  "volcanion":             "Volcanion",
-  "primarina":             "Oratoria",
-  "ribombee":              "Rubombelle",
-  "indeedee":              "Wimessir",
-  "wobbuffet":             "Qulbutoké",
-};
-
-// ----------------------------
 // CONFIG PAR GEN
 // ----------------------------
 function buildOverrides(raw) {
@@ -751,20 +549,6 @@ function getGenConfig(gen) {
       showdownOverrides: buildOverrides(SHOWDOWN_OVERRIDES_GEN9_RAW),
       enToFrOverrides: buildOverrides(EN_TO_FR_OVERRIDES_GEN9),
       title: "Gen: 9",
-    };
-  }
-
-  if (gen === 8) {
-    return {
-      gen: 8,
-      dexEnPath: "./dex-en-showdown-gen9.json",
-      mapFrEnPath: "./dex-gen9-fr-en.json",
-      mapFrEnPathExtra: "./dex-gen1-7-fr-en.json",
-      bareme: BAREME_GEN8,
-      bannedNames: BANNED_NAMES_GEN8,
-      showdownOverrides: buildOverrides(SHOWDOWN_OVERRIDES_GEN8_RAW),
-      enToFrOverrides: buildOverrides(EN_TO_FR_OVERRIDES_GEN8),
-      title: "Gen: 8",
     };
   }
 
@@ -955,8 +739,8 @@ async function loadDexForGen(gen) {
 
   const bannedPrefixes = ["arceus", "necrozma"];
 
-  // on construit la liste depuis EN 
-  // on ajoute quand même les extras au cas où
+  // ✅ on construit la liste depuis EN (pas de doublons FR/EN possibles)
+  // ✅ on ajoute quand même les extras au cas où (bans/barème hors dex EN)
   const extrasEN = [
     ...CONFIG.bareme.map(p => canonicalizeEnglishName(p.name)),
     ...CONFIG.bannedNames.map(n => canonicalizeEnglishName(n)),
@@ -968,13 +752,13 @@ async function loadDexForGen(gen) {
   const push = (x) => {
     if (!x) return;
 
-    // clé de dédoublonnage basée sur le nom canonicalisé
+    // ✅ clé de dédoublonnage basée sur le nom canonicalisé
     const canon = canonicalizeEnglishName(x);
     const k = normalize(canon);
     if (!k || seen.has(k)) return;
 
     seen.add(k);
-    // on stocke directement la version canonicalisée
+    // ✅ on stocke directement la version canonicalisée
     out.push(canon);
   };
 
@@ -990,7 +774,7 @@ async function loadDexForGen(gen) {
   // display FR si dispo sinon EN + tag
   const displayFinal = toFrenchNameFromEnglish(enCanon);
 
-  // clé "clean" pour points/bans :
+  // ✅ clé "clean" pour points/bans :
   // - si displayFinal est une vraie trad FR -> on l’utilise
   // - sinon on utilise l’EN canon (sans tag)
   const isTagged = displayFinal.endsWith(MISSING_FR_TAG);
@@ -1335,7 +1119,7 @@ function mountImportUI() {
 // ----------------------------
 function updateGenButtonLabel() {
   if (!genBtn) return;
-  genBtn.textContent = `Gen: ${currentGen}`;
+  genBtn.textContent = currentGen === 7 ? "Gen: 7" : "Gen: 9";
 }
 
 // ----------------------------
@@ -1363,7 +1147,7 @@ sortBtn?.addEventListener("click", () => {
 pokepasteBtn?.addEventListener("click", openPokePaste);
 
 genBtn?.addEventListener("click", async () => {
-  currentGen = currentGen === 7 ? 8 : currentGen === 8 ? 9 : 7;
+  currentGen = currentGen === 7 ? 9 : 7;
   updateGenButtonLabel();
   await loadDexForGen(currentGen);
 });
