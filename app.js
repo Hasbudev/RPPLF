@@ -475,6 +475,7 @@ const BANNED_NAMES_GEN9 = [
   "Chi-Yu",
   "Koraidon","Miraidon",
   "Chien-Pao",
+  "terapagos-stellar",
 ];
 
 const SHOWDOWN_OVERRIDES_GEN9_RAW = {};
