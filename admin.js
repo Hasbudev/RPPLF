@@ -1,20 +1,19 @@
 // ======================================================
 // Team Builder RPPLF — admin.js
-// Édite rules.json et l'enregistre via l'API GitHub (commit direct).
+// Édite les règles et les enregistre via l'API (worker/), protégée
+// par le mot de passe staff.
 // ======================================================
 
-const DEFAULT_REPO = "Hasbudev/RPPLF";
-const DEFAULT_BRANCH = "main";
-const RULES_FILE = "rules.json";
 const STORAGE_KEY = "rpplf-admin";
 
 // ----------------------------
 // STATE
 // ----------------------------
-let baseline = null;  // rules tels que chargés (ou dernier enregistrement)
-let working = null;   // rules en cours d'édition
-let remoteSha = null; // sha du fichier sur GitHub (null = fichier absent)
-let canSave = false;  // false si on n'a pas pu lire GitHub
+let baseline = null;  // règles telles que chargées (ou dernier enregistrement)
+let working = null;   // règles en cours d'édition
+let version = 0;      // version côté API (sert à détecter les enregistrements concurrents)
+let canSave = false;  // false si l'API est injoignable (copie locale en lecture seule)
+let loggedIn = false;
 let DEXES = {};       // gen -> dex data
 let currentGen = 9;
 let rows = [];        // lignes affichées pour la gen courante
@@ -25,10 +24,10 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 // DOM
 // ----------------------------
 const $ = (id) => document.getElementById(id);
-const repoInput = $("repoInput");
-const branchInput = $("branchInput");
-const tokenInput = $("tokenInput");
+const loginForm = $("loginForm");
+const passwordInput = $("passwordInput");
 const rememberInput = $("rememberInput");
+const loginStatus = $("loginStatus");
 const loadBtn = $("loadBtn");
 const sourceStatus = $("sourceStatus");
 const genTabs = $("genTabs");
@@ -53,73 +52,64 @@ const saveStatus = $("saveStatus");
 function loadSettings() {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch {}
-  repoInput.value = s.repo || DEFAULT_REPO;
-  branchInput.value = s.branch || DEFAULT_BRANCH;
-  tokenInput.value = s.token || "";
-  rememberInput.checked = !!s.token;
+  passwordInput.value = s.password || "";
+  rememberInput.checked = !!s.password;
 }
 
 function saveSettings() {
-  const s = { repo: repoInput.value.trim(), branch: branchInput.value.trim() };
-  if (rememberInput.checked && tokenInput.value.trim()) s.token = tokenInput.value.trim();
+  const s = {};
+  if (rememberInput.checked && passwordInput.value) s.password = passwordInput.value;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
 }
 
 // ----------------------------
-// GITHUB API
+// API
 // ----------------------------
-function b64EncodeUtf8(str) {
-  const bytes = new TextEncoder().encode(str);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
-
-function b64DecodeUtf8(b64) {
-  const bin = atob(b64.replace(/\s/g, ""));
-  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
-}
-
-function ghHeaders() {
-  const h = { Accept: "application/vnd.github+json" };
-  const token = tokenInput.value.trim();
-  if (token) h.Authorization = `Bearer ${token}`;
-  return h;
-}
-
-function contentsUrl() {
-  const repo = repoInput.value.trim() || DEFAULT_REPO;
-  return `https://api.github.com/repos/${repo}/contents/${RULES_FILE}`;
-}
-
-// -> { rules, sha } | { missing: true }
-async function ghGetRules() {
-  const branch = branchInput.value.trim() || DEFAULT_BRANCH;
-  const r = await fetch(`${contentsUrl()}?ref=${encodeURIComponent(branch)}`, { headers: ghHeaders(), cache: "no-store" });
-  if (r.status === 404) return { missing: true };
-  if (!r.ok) throw new Error(`GitHub ${r.status}`);
-  const data = await r.json();
-  return { rules: JSON.parse(b64DecodeUtf8(data.content)), sha: data.sha };
-}
-
-async function ghPutRules(rules, message, sha) {
-  const body = {
-    message,
-    content: b64EncodeUtf8(serializeRules(rules)),
-    branch: branchInput.value.trim() || DEFAULT_BRANCH,
-  };
-  if (sha) body.sha = sha;
-  const r = await fetch(contentsUrl(), {
-    method: "PUT",
-    headers: { ...ghHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+async function api(method, path, body) {
+  const headers = { Authorization: `Bearer ${passwordInput.value}` };
+  if (body) headers["Content-Type"] = "application/json";
+  const r = await fetch(`${RULES_API}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
   });
+  const data = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const err = new Error(`GitHub ${r.status}`);
+    const err = new Error(`API ${r.status}`);
     err.status = r.status;
     throw err;
   }
-  return r.json();
+  return data;
+}
+
+// -> { version, rules } (version 0 = l'API n'a encore rien, on part de rules.json)
+async function fetchState() {
+  try {
+    const s = await api("GET", "/state");
+    return { version: s.version, rules: s.rules };
+  } catch (e) {
+    if (e.status === 404) return { version: 0, rules: await fetchJson(RULES_PATH) };
+    throw e;
+  }
+}
+
+// ----------------------------
+// LOGIN
+// ----------------------------
+async function login() {
+  if (!passwordInput.value) { passwordInput.focus(); return; }
+  loginStatus.textContent = "Connexion…";
+  try {
+    await api("POST", "/login");
+    loggedIn = true;
+    saveSettings();
+    loginStatus.textContent = "✅ Connecté";
+  } catch (e) {
+    loggedIn = false;
+    loginStatus.textContent = e.status === 401 ? "❌ Mot de passe incorrect" : "❌ API injoignable";
+  }
+  renderChanges();
 }
 
 // ----------------------------
@@ -127,7 +117,6 @@ async function ghPutRules(rules, message, sha) {
 // ----------------------------
 async function loadAll() {
   if (hasChanges() && !confirmDiscard()) return;
-  saveSettings();
   sourceStatus.textContent = "Chargement…";
   saveStatus.textContent = "";
 
@@ -137,28 +126,22 @@ async function loadAll() {
       DEXES = { 7: d7, 8: { ...d9, gen: 8 }, 9: d9 };
     }
 
-    let rules;
+    let state;
     try {
-      const res = await ghGetRules();
-      if (res.missing) {
-        rules = await loadRules();
-        remoteSha = null;
-        sourceStatus.textContent = `⚠️ ${RULES_FILE} n'existe pas encore sur GitHub, il sera créé au premier enregistrement.`;
-      } else {
-        rules = res.rules;
-        remoteSha = res.sha;
-        sourceStatus.textContent = `✅ Chargé depuis GitHub (${repoInput.value.trim()}@${branchInput.value.trim()}, ${res.sha.slice(0, 7)})`;
-      }
+      state = await fetchState();
       canSave = true;
+      sourceStatus.textContent = state.version
+        ? `· Version ${state.version}`
+        : "· Premier enregistrement : les règles actuelles du site serviront de base.";
     } catch (e) {
-      rules = await loadRules();
-      remoteSha = null;
+      state = { version: 0, rules: await fetchJson(RULES_PATH) };
       canSave = false;
-      sourceStatus.textContent = `⚠️ GitHub inaccessible (${e.message}) — copie locale en lecture seule. Vérifie le dépôt / token puis « Recharger ».`;
+      sourceStatus.textContent = `⚠️ API injoignable (${e.message}) — copie locale en lecture seule.`;
     }
 
-    baseline = rules;
-    working = clone(rules);
+    version = state.version;
+    baseline = state.rules;
+    working = clone(state.rules);
     render();
   } catch (e) {
     console.error(e);
@@ -341,7 +324,8 @@ function paintRow(tr, row, st = stateOf(currentGen, working, row.key)) {
 // ----------------------------
 // CHANGES
 // ----------------------------
-function listChanges() {
+// [{ gen, key, before, after }] pour chaque Pokémon modifié
+function pendingEdits() {
   if (!baseline || !working) return [];
   const out = [];
   for (const g of GENS) {
@@ -355,22 +339,28 @@ function listChanges() {
       const k = keyOf(g, key);
       if (seen.has(k)) continue;
       seen.add(k);
-      const a = stateOf(g, baseline, key), b = stateOf(g, working, key);
-      const parts = [];
-      if (a.points !== b.points) parts.push(`points ${a.points} → ${b.points}`);
-      if (a.banned !== b.banned) parts.push(b.banned ? "banni" : "débanni");
-      if (a.name !== b.name) parts.push(`nom « ${a.name} » → « ${b.name} »`);
-      if (parts.length) out.push(`Gen ${g} · ${key} : ${parts.join(", ")}`);
+      const before = stateOf(g, baseline, key), after = stateOf(g, working, key);
+      if (before.points !== after.points || before.banned !== after.banned || before.name !== after.name) {
+        out.push({ gen: g, key, before, after });
+      }
     }
   }
   return out;
 }
 
-const hasChanges = () => listChanges().length > 0;
+function describeEdit({ gen, key, before, after }) {
+  const parts = [];
+  if (before.points !== after.points) parts.push(`points ${before.points} → ${after.points}`);
+  if (before.banned !== after.banned) parts.push(after.banned ? "banni" : "débanni");
+  if (before.name !== after.name) parts.push(`nom « ${before.name} » → « ${after.name} »`);
+  return `Gen ${gen} · ${key} : ${parts.join(", ")}`;
+}
+
+const hasChanges = () => pendingEdits().length > 0;
 const confirmDiscard = () => window.confirm("Tu as des modifications non enregistrées. Les abandonner ?");
 
 function renderChanges() {
-  const changes = listChanges();
+  const changes = pendingEdits().map(describeEdit);
   changesCount.textContent = String(changes.length);
   saveBtn.disabled = !changes.length || !canSave;
   discardBtn.disabled = !changes.length;
@@ -379,38 +369,57 @@ function renderChanges() {
     : `<div class="text-slate-500">Aucune modification.</div>`;
 }
 
+// Ré-applique nos modifs sur une version plus récente (enregistrée par quelqu'un d'autre)
+function rebaseOnto(state, edits) {
+  version = state.version;
+  baseline = state.rules;
+  working = clone(state.rules);
+  for (const { gen, key, before, after } of edits) {
+    if (before.points !== after.points) setPoints(gen, key, after.points);
+    if (before.banned !== after.banned) setBanned(gen, key, after.banned);
+    if (before.name !== after.name && gen !== 7) setFrName(gen, key, after.missingFr ? "" : after.name);
+  }
+}
+
 // ----------------------------
 // SAVE
 // ----------------------------
 async function save() {
-  const changes = listChanges();
-  if (!changes.length) return;
-  if (!tokenInput.value.trim()) {
-    saveStatus.textContent = "❌ Renseigne un token GitHub pour enregistrer.";
-    tokenInput.focus();
+  const edits = pendingEdits();
+  if (!edits.length) return;
+  if (!loggedIn) {
+    saveStatus.textContent = "❌ Connecte-toi avec le mot de passe staff pour enregistrer.";
+    passwordInput.focus();
     return;
   }
 
-  saveSettings();
   saveBtn.disabled = true;
   saveStatus.textContent = "Enregistrement…";
 
-  const message = `admin: ${changes.length} modification(s) des règles\n\n` +
-    changes.slice(0, 50).map(c => `- ${c}`).join("\n") +
-    (changes.length > 50 ? `\n- … et ${changes.length - 50} autre(s)` : "");
-
   try {
-    const res = await ghPutRules(working, message, remoteSha);
-    remoteSha = res.content.sha;
+    const res = await api("PUT", "/rules", { version, rules: JSON.parse(serializeRules(working)) });
+    version = res.version;
     baseline = clone(working);
     render();
-    saveStatus.textContent = `✅ Enregistré (commit ${res.commit.sha.slice(0, 7)}). Le site sera à jour d'ici 1–2 min.`;
+    sourceStatus.textContent = `· Version ${version}`;
+    saveStatus.textContent = "✅ Enregistré. Le site sera à jour d'ici 1 min.";
   } catch (e) {
     console.error(e);
+    if (e.status === 409) {
+      // quelqu'un a enregistré entre-temps : on reprend sa version + nos modifs
+      try {
+        rebaseOnto(await fetchState(), edits);
+        render();
+        saveStatus.textContent = "⚠️ Quelqu'un a enregistré entre-temps. Tes modifs ont été ré-appliquées sur sa version : vérifie puis ré-enregistre.";
+      } catch {
+        saveStatus.textContent = "❌ Quelqu'un a enregistré entre-temps et la nouvelle version n'a pas pu être chargée. Réessaie.";
+      }
+      return renderChanges();
+    }
+    if (e.status === 401) loggedIn = false;
     saveStatus.textContent =
-      e.status === 401 ? "❌ Token invalide ou expiré." :
-      e.status === 403 || e.status === 404 ? "❌ Le token n'a pas l'accès en écriture à ce dépôt (Contents : Read and write)." :
-      e.status === 409 || e.status === 422 ? "❌ rules.json a changé sur GitHub depuis le chargement. Note tes modifs, « Recharger », puis refais-les." :
+      e.status === 401 ? "❌ Mot de passe incorrect." :
+      e.status === 400 ? "❌ Données refusées par le serveur." :
       `❌ Échec de l'enregistrement (${e.message}).`;
     renderChanges();
   }
@@ -476,6 +485,7 @@ addForm.addEventListener("submit", (e) => {
     : `« ${key} » ajouté avec ${pts} pts.`;
 });
 
+loginForm.addEventListener("submit", (e) => { e.preventDefault(); login(); });
 searchEl.addEventListener("input", renderRows);
 filterSelect.addEventListener("change", renderRows);
 loadBtn.addEventListener("click", loadAll);
@@ -497,4 +507,4 @@ window.addEventListener("beforeunload", (e) => {
 // START
 // ----------------------------
 loadSettings();
-loadAll();
+loadAll().then(() => { if (passwordInput.value) login(); });

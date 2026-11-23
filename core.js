@@ -8,7 +8,8 @@
 // HELPERS
 // ----------------------------
 const MISSING_FR_TAG = "(@moyerf)";
-const RULES_PATH = "./rules.json";
+const RULES_PATH = "./rules.json"; // copie de secours si l'API ne répond pas
+const RULES_API = "https://rpplf-rules.rpplfdev.workers.dev"; // Worker Cloudflare (dossier worker/)
 const GENS = [7, 8, 9];
 
 const normalize = (s) =>
@@ -148,7 +149,12 @@ async function fetchJson(path) {
 }
 
 async function loadRules() {
-  return fetchJson(RULES_PATH);
+  try {
+    return await fetchJson(`${RULES_API}/rules`);
+  } catch (e) {
+    console.warn("API des règles indisponible, copie locale utilisée.", e);
+    return fetchJson(RULES_PATH);
+  }
 }
 
 // Charge les fichiers dex d'une gen (sans les règles)

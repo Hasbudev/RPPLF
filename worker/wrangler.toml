@@ -1,0 +1,10 @@
+name = "rpplf-rules"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "RULES"
+id = "b0bb627d902946e1b602444061cca5d7"
+
+# Le mot de passe staff n'est PAS ici : il est stocké comme secret Cloudflare
+#   npx wrangler secret put STAFF_PASSWORD
