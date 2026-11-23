@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Admin RPPLF</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <div class="mx-auto max-w-5xl px-4 py-10 pb-40">
+    <header class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-3xl font-semibold tracking-tight">Admin RPPLF</h1>
+        <p class="text-slate-300">Modifie les points, les bans et les noms FR, puis enregistre sur GitHub.</p>
+      </div>
+      <a href="./index.html" class="text-sm text-indigo-300 hover:text-indigo-200">← Retour au Team Builder</a>
+    </header>
+
+    <!-- Connexion GitHub -->
+    <section class="mb-6 rounded-2xl bg-slate-900/50 p-4 ring-1 ring-slate-800">
+      <div class="grid gap-3 sm:grid-cols-[1fr_8rem_1.4fr_auto] sm:items-end">
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-slate-400">Dépôt</span>
+          <input id="repoInput" type="text" placeholder="owner/repo"
+            class="mt-1 w-full rounded-xl bg-slate-950/60 px-3 py-2 text-sm ring-1 ring-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-slate-400">Branche</span>
+          <input id="branchInput" type="text" placeholder="main"
+            class="mt-1 w-full rounded-xl bg-slate-950/60 px-3 py-2 text-sm ring-1 ring-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-slate-400">Token GitHub</span>
+          <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…"
+            class="mt-1 w-full rounded-xl bg-slate-950/60 px-3 py-2 text-sm ring-1 ring-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </label>
+        <button id="loadBtn"
+          class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700">
+          Recharger
+        </button>
+      </div>
+      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+        <label class="inline-flex items-center gap-2">
+          <input id="rememberInput" type="checkbox" class="accent-indigo-500" />
+          Se souvenir du token sur cet appareil
+        </label>
+        <span id="sourceStatus"></span>
+      </div>
+      <details class="mt-3 text-xs text-slate-500">
+        <summary class="cursor-pointer hover:text-slate-400">Comment créer un token ?</summary>
+        <p class="mt-2 leading-relaxed">
+          GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> →
+          Generate new token. Repository access : <b>uniquement ce dépôt</b>. Permissions → Repository →
+          <b>Contents : Read and write</b>. Le token reste dans ton navigateur et n'est envoyé qu'à api.github.com.
+        </p>
+      </details>
+    </section>
+
+    <!-- Éditeur -->
+    <section class="rounded-2xl bg-slate-900/50 p-4 ring-1 ring-slate-800">
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <div id="genTabs" class="flex rounded-xl bg-slate-950/60 p-1 ring-1 ring-slate-800"></div>
+        <div class="relative min-w-[12rem] flex-1">
+          <input id="search" type="text" placeholder="Rechercher (FR ou EN)…"
+            class="w-full rounded-xl bg-slate-950/60 px-4 py-2 text-sm ring-1 ring-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <select id="filterSelect"
+          class="rounded-xl bg-slate-950/60 px-3 py-2 text-sm ring-1 ring-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="all">Tous</option>
+          <option value="points">Avec points</option>
+          <option value="banned">Bannis</option>
+          <option value="modified">Modifiés</option>
+          <option value="missingFr">Sans nom FR</option>
+        </select>
+      </div>
+
+      <form id="addForm" class="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-slate-950/40 p-3 ring-1 ring-slate-800">
+        <span class="text-sm text-slate-300">Ajouter :</span>
+        <input id="addName" type="text" required
+          class="min-w-[10rem] flex-1 rounded-lg bg-slate-950/60 px-3 py-2 text-sm ring-1 ring-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <input id="addPoints" type="number" min="0" max="99" value="1"
+          class="w-20 rounded-lg bg-slate-950/60 px-3 py-2 text-sm ring-1 ring-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <button class="rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-slate-200 ring-1 ring-slate-700 hover:bg-slate-700">
+          Ajouter
+        </button>
+        <span id="addHint" class="w-full text-xs text-slate-500"></span>
+      </form>
+
+      <div class="mb-2 text-sm text-slate-400">
+        Résultats : <span id="resultCount" class="font-semibold text-slate-200">0</span>
+      </div>
+
+      <div class="scroll-area max-h-[60vh] overflow-auto rounded-xl ring-1 ring-slate-800">
+        <table class="w-full min-w-[36rem] text-sm">
+          <thead class="sticky top-0 z-10 bg-slate-900 text-left text-xs uppercase tracking-wider text-slate-400">
+            <tr>
+              <th class="px-3 py-2">Nom affiché</th>
+              <th class="px-3 py-2">EN / Showdown</th>
+              <th class="px-3 py-2 w-24">Points</th>
+              <th class="px-3 py-2 w-16 text-center">Banni</th>
+              <th class="px-3 py-2 w-12"></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Barre d'enregistrement -->
+  <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-800 bg-slate-950/95 backdrop-blur"
+       style="padding-bottom: env(safe-area-inset-bottom, 0px)">
+    <div class="mx-auto max-w-5xl px-4 py-3">
+      <div id="changesPanel" class="scroll-area mb-3 hidden max-h-48 overflow-auto rounded-xl bg-slate-900/60 p-3 text-xs text-slate-300 ring-1 ring-slate-800"></div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="changesBtn" class="text-sm text-slate-300 hover:text-white">
+          <span id="changesCount" class="font-semibold">0</span> modification(s)
+        </button>
+        <button id="discardBtn" class="rounded-lg px-3 py-2 text-xs text-slate-400 ring-1 ring-slate-800 hover:bg-slate-800">
+          Tout annuler
+        </button>
+        <span id="saveStatus" class="text-xs text-slate-400"></span>
+        <button id="saveBtn"
+          class="ml-auto rounded-xl bg-indigo-500/20 px-4 py-2 text-sm font-medium text-indigo-100 ring-1 ring-indigo-500/40 hover:bg-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-40">
+          Enregistrer sur GitHub
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="core.js" defer></script>
+  <script src="admin.js" defer></script>
+</body>
+</html>
